@@ -28,6 +28,16 @@ Plague-Bot VR is a teleoperated robotic system that combines:
 
 ---
 
+## Demo Videos
+
+| Demo | Link |
+|---|---|
+| Robot physical demo | Coming soon |
+| RViz simulation + inverse kinematics | Coming soon |
+| Orbbec → Meta Quest 3 streaming | Coming soon |
+
+---
+
 ## System Architecture
 
 ```
@@ -41,10 +51,10 @@ Plague-Bot VR is a teleoperated robotic system that combines:
 │     Raspberry Pi 5 + Hailo-8 AI Accelerator             │
 │     YOLOv8 Inference → Pest Detection (up to 90 FPS)    │
 └───────────────────────┬─────────────────────────────────┘
-                        │ ROS 2 Humble
+                        │ ROS 2 Humble / Jazzy
 ┌───────────────────────▼─────────────────────────────────┐
 │                  ROBOT HARDWARE                         │
-│   6-DOF Arm + Depth Camera + Tracked Chassis            │
+│   6-DOF Arm + Orbbec Depth Camera + Tracked Chassis     │
 │   MoveIt! + KDL Kinematics Plugin                       │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -76,8 +86,6 @@ ModelArts significantly outperformed all alternatives in training speed and work
 - **Inference speed:** up to 90 FPS on edge device
 - **Classes:** Spider mite, Whitefly, *Tuta absoluta*, Early blight
 
-> Note: ModelArts also produces a MindSpore `.ms` file for native execution on Ascend chips. Testing on Ascend hardware was not conducted as part of this project due to hardware availability.
-
 ---
 
 ## Robotic Arm — ROS 2
@@ -90,23 +98,45 @@ ModelArts significantly outperformed all alternatives in training speed and work
 | `plaguebot_msgs` | Custom ROS 2 messages and services |
 | `plaguebot_utils` | Shared C++ utility library |
 
-**Stack:** ROS 2 Humble · MoveIt! · KDL Kinematics Plugin · Depth camera in gripper
+**Stack:** ROS 2 Humble · MoveIt! · KDL Kinematics Plugin · Orbbec depth camera in gripper
 
 ---
 
-## Video Streaming
+## Video Streaming — `src/plaguebot_vision`
 
-- **Protocol:** WebRTC over 4G/5G cellular
-- **Pipeline:** Raspberry Pi 5 (GStreamer) → WebRTC → Meta Quest 3 (Unity)
-- **Measured latency:** ~8.7ms RTT on Universidad Iberoamericana network · ~29 FPS
-- **Networking:** Tailscale VPN for secure peer-to-peer connection
+ROS 2 package running on the Raspberry Pi that bridges the Orbbec Astra Pro Plus camera to WebRTC, streaming H.264 video to the Meta Quest 3 over Tailscale.
+
+**Architecture:**
+```
+Orbbec Astra Pro Plus (USB)
+        ↓
+orbbec_camera_node (ROS 2)
+        ↓ /color/image_raw
+webrtc_bridge (aiortc + aiohttp)
+        ↓ H.264 over Tailscale
+Meta Quest 3 (Unity / Browser)
+```
+
+**Key specs:**
+- Protocol: WebRTC with H.264 hardware decode on Quest 3
+- Measured latency: ~8.7ms RTT on Universidad Iberoamericana network
+- Framerate: ~29 FPS
+- Networking: Tailscale VPN mesh between Pi and headset
+- Auto-restart: systemd service on boot
+
+**Run manually:**
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/plaguebot_ws/install/setup.bash
+ros2 launch plaguebot_vision plaguebot.launch.py
+```
 
 ---
 
 ## VR Interface — Unity + Meta Quest 3
 
 - Digital twin of the robotic arm for real-time visualization
-- Live camera feed from the robot integrated in VR
+- Live camera feed from the Orbbec integrated in VR
 - Operator controls for arm movement and spraying trigger
 - Built with Unity + Meta XR SDK
 
@@ -115,15 +145,16 @@ ModelArts significantly outperformed all alternatives in training speed and work
 ## Reproduction Steps
 
 ### Prerequisites
-- Ubuntu 22.04
-- ROS 2 Humble
+- Ubuntu 22.04 / 24.04
+- ROS 2 Humble (robot PC) / ROS 2 Jazzy (Raspberry Pi)
 - Python 3.10+
 - Raspberry Pi 5 with Hailo-8 AI Kit
+- Orbbec Astra Pro Plus
 - Meta Quest 3 + Unity 2022.3+
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/orlandocamc/plague-bot-vr.git
+git clone --recurse-submodules https://github.com/orlandocamc/plague-bot-vr.git
 cd plague-bot-vr
 ```
 
@@ -147,11 +178,10 @@ cd ai_model
 python3 inference.py --source camera --model weights/best.hef
 ```
 
-### 5. Start WebRTC streaming
+### 5. Start WebRTC streaming (on Raspberry Pi)
 ```bash
-# Run on Raspberry Pi
-cd webrtc_streaming
-python3 pi_sender.py
+ros2 launch plaguebot_vision plaguebot.launch.py
+# Stream available at http://<tailscale-ip>:8080
 ```
 
 ---
@@ -175,8 +205,25 @@ python3 pi_sender.py
 | AI Training | Huawei Cloud ModelArts · MindSpore · YOLOv8 |
 | Edge Inference | Raspberry Pi 5 · Hailo-8 (26 TOPS) · HailoRT |
 | Robot Control | ROS 2 Humble · MoveIt! · KDL Kinematics Plugin |
-| Streaming | WebRTC · GStreamer · Tailscale |
+| Streaming | ROS 2 Jazzy · WebRTC · aiortc · Tailscale |
 | VR Interface | Unity · Meta Quest 3 · Meta XR SDK |
+
+---
+
+## Repository Structure
+
+```
+plague-bot-vr/
+├── ai_model/              ← AI training & inference (submodule → Eliot Calderón)
+├── src/
+│   ├── plaguebot_description/   ← URDF, meshes, RViz
+│   ├── plaguebot_controller/    ← C++ joint controllers
+│   ├── plaguebot_moveit/        ← MoveIt! config
+│   ├── plaguebot_msgs/          ← Custom messages & services
+│   ├── plaguebot_utils/         ← Shared C++ utilities
+│   └── plaguebot_vision/        ← WebRTC streaming (Orbbec → Quest 3)
+└── README.md
+```
 
 ---
 

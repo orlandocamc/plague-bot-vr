@@ -1,0 +1,3 @@
+[submodule "ai_model"]
+	path = ai_model
+	url = https://github.com/Eliotnecaxista21/Huawei

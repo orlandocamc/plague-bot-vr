@@ -1,0 +1,262 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot">
+
+    <xacro:arg name="is_ignition" default="true"/>
+
+    <xacro:include filename="$(find plaguebot_description)/urdf/plaguebot_gazebo.xacro"/>
+    <xacro:include filename="$(find plaguebot_description)/urdf/plaguebot_ros2_control.xacro"/>
+
+    <xacro:property name="PI" value="3.1459"/>
+    <xacro:property name="effort" value="3.43"/>
+    <xacro:property name="velocity" value="6.5"/>
+    <xacro:property name="effort_double" value="6.86"/>
+
+    <xacro:macro name="default_inertial" params="mass">
+        <inertial>
+            <mass value="${mass}"/>
+            <inertia ixx="0.0001" ixy="0.0" ixz="0.0"
+                     iyy="0.0001" iyz="0.0"
+                     izz="0.0001"/>
+        </inertial>
+    </xacro:macro>
+
+
+    <link name="world"/>
+
+    
+    <link name="base_link">
+        <xacro:default_inertial mass="1.0"/>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/base.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="aluminum_grey">
+                <color rgba="0.7 0.7 0.7 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/base.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="virtual_joint" type="fixed">
+        <parent link="world"/>
+        <child link="base_link"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+    </joint>
+
+    <link name="base_plate_link">
+        <xacro:default_inertial mass="0.1"/>
+        <visual>
+            <origin rpy="1.5708 0 0" xyz="0 0 -0.06225"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/base_plate.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="red">
+                <color rgba="0.8 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin rpy="1.5708 0 0" xyz="0 0 -0.06225"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/base_plate.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="joint_1" type="continuous">
+        <parent link="base_link"/>
+        <child link="base_plate_link"/>
+        <axis xyz="0 0 1"/>
+        <origin rpy="0 0 0" xyz="0 0 0.06225"/>
+        <limit effort="${effort}" velocity="${velocity}"/>
+    </joint>
+
+    <link name="upper_arm_link">
+        <xacro:default_inertial mass="0.1"/>
+        <visual>
+            <origin xyz="0 0.0199999 -0.1218" rpy="1.5708 0 0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/upper_arm.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="aluminum_grey">
+                <color rgba="0.7 0.7 0.7 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0.0199999 -0.1218" rpy="1.5708 0 0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/upper_arm.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="joint_2" type="revolute">
+        <parent link="base_plate_link"/>
+        <child link="upper_arm_link"/>
+        <axis xyz="1 0 0"/>
+        <origin xyz="0 -0.02 0.05894" rpy="0 0 0"/>
+        <limit lower="-${PI/2}" upper="${PI/2}" effort="${effort_double}" velocity="${velocity}"/>
+    </joint>
+
+    <link name= "elbow_1_link">
+        <xacro:default_inertial mass="0.1"/>
+        <visual>
+            <origin xyz="0.0 0.02 -0.2382" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/elbow_1.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="red">
+                <color rgba="0.8 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.02 -0.2382" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/elbow_1.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="joint_3" type="revolute">
+        <parent link="upper_arm_link"/>
+        <child link="elbow_1_link"/>
+        <axis xyz="1 0.0 0.0"/>
+        <origin xyz="0.0 -0.0002 0.116595" rpy="0.0 0.0 0.0"/>
+        <limit lower="-${PI/2}" upper="${PI/2}" effort="${effort}" velocity="${velocity}"/>
+    </joint>
+
+    <link name= "forearm_link">
+        <xacro:default_inertial mass="0.1"/>
+        <visual>
+            <origin xyz="0.0 0.02 -0.3013" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/forearm.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="aluminum_grey">
+                <color rgba="0.7 0.7 0.7 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.02 -0.3013" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/forearm.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="joint_4" type="revolute">
+        <parent link="elbow_1_link"/>
+        <child link="forearm_link"/>
+        <axis xyz="0.0 1 0.0"/>
+        <origin xyz="0.0 0.0 0.063" rpy="0.0 0.0 0.0"/>
+        <limit lower="-${PI/2}" upper="${PI/2}" effort="${effort}" velocity="${velocity}"/>
+    </joint>
+
+    <link name= "wrist_1_link">
+        <xacro:default_inertial mass="0.1"/>
+        <visual>
+            <origin xyz="0.0 0.02 -0.378" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/wrist_1.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="red">
+                <color rgba="0.8 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.02 -0.378" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/wrist_1.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="joint_5" type="revolute">
+        <parent link="forearm_link"/>
+        <child link="wrist_1_link"/>
+        <axis xyz="1 0.0 0.0"/>
+        <origin xyz="0.0 0.0 0.076671" rpy="0.0 0.0 0.0"/>
+        <limit lower="-${PI/2}" upper="${PI/2}" effort="${effort}" velocity="${velocity}"/>
+    </joint>
+
+    <link name= "wrist_2_link">
+        <xacro:default_inertial mass="0.1"/>
+        <visual>
+            <origin xyz="0.0 0.0205 -0.446" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/wrist_2.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="aluminum_grey">
+                <color rgba="0.7 0.7 0.7 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0205 -0.446" rpy="1.5708 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/wrist_2.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="joint_6" type="revolute">
+        <parent link="wrist_1_link"/>
+        <child link="wrist_2_link"/>
+        <axis xyz="0.0 1.0 0.0"/>
+        <origin xyz="0.0 0.0 0.06804" rpy="0.0 0.0 0.0"/>
+        <limit lower="-${PI/2}" upper="${PI/2}" effort="${effort}" velocity="${velocity}"/>
+    </joint>
+
+    <link name="camera_link">
+        <xacro:default_inertial mass="0.05"/>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 3.1459"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/depth_camera.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="black">
+                <color rgba="0.1 0.1 0.1 1.0"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 3.1459"/>
+            <geometry>
+                <mesh filename="package://plaguebot_description/meshes/depth_camera.STL" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="camera_joint" type="fixed">
+        <parent link="wrist_2_link"/>
+        <child link="camera_link"/>
+        <origin xyz="0.0 -0.0565 0.0" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <gazebo reference="camera_link">
+        <sensor name="camera" type="rgbd_camera">
+            <always_on>true</always_on>
+            <update_rate>30.0</update_rate>
+            <topic>camera</topic> 
+            <gz_frame_id>camera_link</gz_frame_id>
+            
+            <camera name="camera">
+                <horizontal_fov>1.047</horizontal_fov>
+                <image>
+                    <width>640</width>
+                    <height>480</height>
+                    <format>R8G8B8</format>
+                </image>
+                <clip>
+                    <near>0.1</near>
+                    <far>8.0</far>
+                </clip>
+            </camera>
+        </sensor>
+    </gazebo>
+
+</robot>

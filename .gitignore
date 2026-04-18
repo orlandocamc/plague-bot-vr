@@ -1,0 +1,17 @@
+# ROS2 colcon artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+
+# Modelos pesados
+*.pt
+*.onnx
+*.hef
+
+# Unity
+Library/
+Temp/

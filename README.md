@@ -65,7 +65,9 @@ Plague-Bot VR is a teleoperated robotic system that combines:
 
 ### Dataset
 
-The dataset was compiled from multiple online sources, selecting only images relevant to common tomato pests. Web-scraped images were added and manually labeled with bounding box annotations. Data augmentation techniques (rotation, blur, high contrast) were applied, resulting in a robust dataset of **19,000 images**. The dataset is hosted on Roboflow as **Jada_Tomato**.
+The dataset was compiled from multiple online sources, selecting only images relevant to common tomato pests. Web-scraped images were added and manually labeled with bounding box annotations. Data augmentation techniques (rotation, blur, high contrast) were applied, resulting in a robust dataset of **19,000 images**. 
+
+The dataset is hosted on Roboflow as **[Jada_Tomato](https://universe.roboflow.com/eliotnecaxista21-gmail-com/jada_tomato-qiykq)**.
 
 ### Training Platform Comparison
 

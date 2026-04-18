@@ -75,7 +75,7 @@ The dataset is hosted on Roboflow as **[Jada_Tomato](https://universe.roboflow.c
 |---|---|---|
 | Huawei ModelArts | 50 | ~1 hour |
 | Google Colab / Kaggle | 30 | ~2 hours |
-| Local RTX 3050 | 30 | ~2 hours |
+| Local RTX 3050 | 30 | ~9 hours |
 
 ModelArts significantly outperformed all alternatives in training speed and workflow efficiency, benefiting from tight integration with the Huawei ecosystem.
 

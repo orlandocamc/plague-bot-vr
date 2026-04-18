@@ -1,0 +1,26 @@
+[Unit]
+Description=PlagueBot Vision - Orbbec camera + WebRTC bridge
+After=network-online.target tailscaled.service
+Wants=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+User=jada
+Group=jada
+Environment="HOME=/home/jada"
+Environment="PYTHONUNBUFFERED=1"
+Environment="ROS_DOMAIN_ID=0"
+Environment="RMW_IMPLEMENTATION=rmw_fastrtps_cpp"
+ExecStartPre=/bin/sleep 10
+ExecStart=/bin/bash -c 'source /opt/ros/jazzy/setup.bash && source /home/jada/plaguebot_ws/install/setup.bash && exec ros2 launch plaguebot_vision plaguebot.launch.py'
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=120
+StartLimitBurst=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=plaguebot-vision
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

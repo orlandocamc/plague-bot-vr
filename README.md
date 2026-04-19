@@ -30,7 +30,7 @@ Plague-Bot VR is a teleoperated robotic system that combines:
 
 ## Demo Videos
 
-All videos published on the JADA Robotics YouTube channel.
+All videos published on the JADA Robotics YouTube channel: https://www.youtube.com/@JADAROBOTICS
 
 | Description | Link |
 |---|---|

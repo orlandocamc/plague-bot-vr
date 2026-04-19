@@ -249,3 +249,19 @@ plague-bot-vr/
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+---
+
+## Demo Videos
+
+All videos published on the JADA Robotics YouTube channel.
+
+| Description | Link |
+|---|---|
+| 6-DOF arm simulation — MoveIt! + RViz + Gazebo | https://youtu.be/uLlgKZa18GU |
+| Demo 2 | https://youtu.be/fUsj6qzUkL8 |
+| Demo 3 | https://youtu.be/VieNlwHURlk |
+| Demo 4 | https://youtu.be/AoGdSpipxuY |
+| Demo 5 | https://youtu.be/ixA1cEQ-LvA |
+| Short 1 | https://youtube.com/shorts/mvpq_sJYgL8 |
+| Short 2 | https://youtube.com/shorts/UekEfUiRmN4 |
+| Short 3 | https://youtube.com/shorts/Rlnfhgqy3jQ |

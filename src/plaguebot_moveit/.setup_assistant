@@ -1,0 +1,10 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: plaguebot_description
+    relative_path: urdf/plaguebot.urdf.xacro
+  srdf:
+    relative_path: config/plaguebot.srdf
+  package_settings:
+    author_name: ""
+    author_email: ""
+    generated_timestamp: 1776283321

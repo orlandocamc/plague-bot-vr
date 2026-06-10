@@ -1,0 +1,7 @@
+<library path="plaguebot_firmware">
+  <class name="plaguebot_firmware/PlaguebotInterface"
+    type="plaguebot_firmware::PlaguebotInterface"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>Plague-Bot VR mobile base hardware interface</description>
+  </class>
+</library>

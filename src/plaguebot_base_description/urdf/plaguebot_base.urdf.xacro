@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot_base">
+  <xacro:arg name="is_sim" default="true"/>
 
   <!-- PROPIEDADES FÍSICAS — No modificar sin consultar -->
   <xacro:property name="wheel_radius"    value="0.0762"/>
@@ -19,13 +20,16 @@
     <color rgba="0.18 0.18 0.18 1.0"/>
   </material>
 
+  <xacro:if value="$(arg is_sim)">
   <gazebo>
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
       <parameters>$(find plaguebot_base_description)/config/base_controllers.yaml</parameters>
     </plugin>
   </gazebo>
+  </xacro:if>
 
   <xacro:include filename="$(find plaguebot_base_description)/urdf/plaguebot_base_ros2_control.xacro"/>
+  <xacro:plaguebot_ros2_control is_sim="$(arg is_sim)"/>
 
   <!-- BASE FOOTPRINT (raíz del robot, proyección al suelo) -->
   <link name="base_footprint"/>

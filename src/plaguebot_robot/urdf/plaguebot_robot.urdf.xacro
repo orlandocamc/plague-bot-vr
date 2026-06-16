@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot_robot">
+
+  <xacro:arg name="is_sim"        default="true"/>
+  <!-- is_standalone=false: omit arm's world root so base_link can attach to
+       top_plate_link. is_ignition mirrors is_sim for arm Gazebo plugins.
+       These are read by the included arm URDF. See ADR-0001. -->
+  <xacro:arg name="is_standalone" default="false"/>
+  <xacro:arg name="is_ignition"   default="true"/>
+  <!-- Single combined controller YAML for the unified robot (base + arm) -->
+  <xacro:arg name="controllers_yaml" default="$(find plaguebot_robot)/config/robot_controllers.yaml"/>
+
+  <!-- Mobile base — uses combined controllers_yaml so the single controller_manager
+       manages both wheel and arm controllers. -->
+  <xacro:include filename="$(find plaguebot_base_description)/urdf/plaguebot_base.urdf.xacro"/>
+
+  <!-- PROTON arm (6-DOF) — is_standalone resolved to false by arg declared above -->
+  <xacro:include filename="$(find plaguebot_description)/urdf/plaguebot.urdf.xacro"/>
+
+  <!-- Mount arm base_link onto the mobile base top plate -->
+  <joint name="arm_mount_joint" type="fixed">
+    <parent link="top_plate_link"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Intel RealSense D435 — mounted on the lateral face of wrist_2_link (the
+       gripper slot face). Joint frame at y=-0.055 (front face of mesh, measured
+       from STL Z extent mapped through rpy="1.5708 0 0").
+       rpy="-1.5708 0 0" rotates d435_link so +Z (optical axis) points in -Y of
+       wrist_2_link, i.e. out through the gripper slot. -->
+  <link name="d435_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- 90mm wide (X), 25mm tall (Y→Z after joint rotation), 25mm deep (Z→-Y) -->
+        <box size="0.090 0.025 0.025"/>
+      </geometry>
+      <material name="d435_black">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.090 0.025 0.025"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.072"/>
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="d435_joint" type="fixed">
+    <parent link="wrist_2_link"/>
+    <child link="d435_link"/>
+    <origin xyz="0 -0.055 0.003" rpy="-1.5708 0 0"/>
+  </joint>
+
+  <!-- D435 Gazebo RGBD camera plugin -->
+  <xacro:if value="$(arg is_sim)">
+    <gazebo reference="d435_link">
+      <sensor type="rgbd_camera" name="d435">
+        <update_rate>30</update_rate>
+        <topic>/d435</topic>
+        <gz_frame_id>d435_link</gz_frame_id>
+        <camera>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>RGB_INT8</format>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>10.0</far>
+          </clip>
+          <depth_camera>
+            <clip>
+              <near>0.1</near>
+              <far>10.0</far>
+            </clip>
+          </depth_camera>
+        </camera>
+      </sensor>
+    </gazebo>
+  </xacro:if>
+
+</robot>

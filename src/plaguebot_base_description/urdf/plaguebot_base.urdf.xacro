@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot_base">
   <xacro:arg name="is_sim" default="true"/>
+  <!-- Override in unified robot to use a combined YAML (base + arm controllers) -->
+  <xacro:arg name="controllers_yaml" default="$(find plaguebot_base_description)/config/base_controllers.yaml"/>
 
   <!-- PROPIEDADES FÍSICAS — No modificar sin consultar -->
   <xacro:property name="wheel_radius"    value="0.0762"/>
@@ -23,7 +25,7 @@
   <xacro:if value="$(arg is_sim)">
   <gazebo>
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <parameters>$(find plaguebot_base_description)/config/base_controllers.yaml</parameters>
+      <parameters>$(arg controllers_yaml)</parameters>
     </plugin>
   </gazebo>
   </xacro:if>
@@ -114,7 +116,10 @@
   <joint name="laser_joint" type="fixed">
     <parent link="base_track_link"/>
     <child link="laser"/>
-    <origin xyz="-0.1 -0.08 0.145" rpy="0 0 0"/>
+    <!-- Raised above top_plate (z=0.15) so the 360 deg scan plane clears the
+         chassis frame; otherwise the LiDAR sits inside the chassis and ~60% of
+         beams hit the robot's own body, painting a false "occupied" trail. -->
+    <origin xyz="-0.1 -0.08 0.28" rpy="0 0 0"/>
   </joint>
 
   <!-- LLANTA DERECHA FRONTAL -->
@@ -267,5 +272,110 @@
   <xacro:wheel_material link_name="rear_right_wheel_link"/>
   <xacro:wheel_material link_name="front_left_wheel_link"/>
   <xacro:wheel_material link_name="rear_left_wheel_link"/>
+
+  <!-- RAZER KIYO RGB CAMERA (chassis, near LiDAR) -->
+  <link name="kiyo_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.07 0.03"/></geometry>
+      <material name="kiyo_dark"><color rgba="0.1 0.1 0.1 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.07 0.03"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.096"/>
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="kiyo_joint" type="fixed">
+    <parent link="base_track_link"/>
+    <child link="kiyo_link"/>
+    <origin xyz="-0.1 0.0 0.16" rpy="0 0 0"/>
+  </joint>
+
+  <!-- IMU (fixed to chassis, no visual) -->
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_track_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GAZEBO SENSOR PLUGINS (simulation only) -->
+  <xacro:if value="$(arg is_sim)">
+
+    <!-- RPLIDAR C1 — GPU LiDAR on existing laser link -->
+    <gazebo reference="laser">
+      <sensor type="gpu_lidar" name="rplidar_c1">
+        <topic>/scan</topic>
+        <gz_frame_id>laser</gz_frame_id>
+        <update_rate>10</update_rate>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>360</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <!-- 0.25 m (not the C1's 0.15 m spec) so the stowed arm column,
+                 ~0.13-0.17 m from the raised LiDAR, is clipped instead of
+                 painting a false "occupied" blob that trails the robot. The
+                 nearest real wall is ~0.35 m and plant rows ~0.75 m away. -->
+            <min>0.25</min>
+            <max>12.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </lidar>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+      </sensor>
+    </gazebo>
+
+    <!-- Razer Kiyo RGB camera -->
+    <gazebo reference="kiyo_link">
+      <sensor type="camera" name="kiyo">
+        <topic>/kiyo/image_raw</topic>
+        <gz_frame_id>kiyo_link</gz_frame_id>
+        <update_rate>30</update_rate>
+        <camera>
+          <image>
+            <width>1280</width>
+            <height>720</height>
+            <format>RGB_INT8</format>
+          </image>
+          <clip><near>0.05</near><far>50.0</far></clip>
+        </camera>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+      </sensor>
+    </gazebo>
+
+    <!-- IMU -->
+    <gazebo reference="imu_link">
+      <sensor type="imu" name="imu_sensor">
+        <topic>/imu/data</topic>
+        <gz_frame_id>imu_link</gz_frame_id>
+        <update_rate>100</update_rate>
+        <always_on>true</always_on>
+        <imu>
+          <angular_velocity><x><noise type="gaussian"><mean>0</mean><stddev>0.009</stddev></noise></x><y><noise type="gaussian"><mean>0</mean><stddev>0.009</stddev></noise></y><z><noise type="gaussian"><mean>0</mean><stddev>0.009</stddev></noise></z></angular_velocity>
+          <linear_acceleration><x><noise type="gaussian"><mean>0</mean><stddev>0.021</stddev></noise></x><y><noise type="gaussian"><mean>0</mean><stddev>0.021</stddev></noise></y><z><noise type="gaussian"><mean>0</mean><stddev>0.021</stddev></noise></z></linear_acceleration>
+        </imu>
+      </sensor>
+    </gazebo>
+
+  </xacro:if>
 
 </robot>

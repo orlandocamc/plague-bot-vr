@@ -1,0 +1,176 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <world name="greenhouse">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <!-- Gazebo Harmonic (gz sim 8) native plugin filenames -->
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+
+    <!-- Lighting -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- Ground plane -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>100 100</size></plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>100 100</size></plane>
+          </geometry>
+          <material>
+            <ambient>0.4 0.6 0.3 1</ambient>
+            <diffuse>0.4 0.6 0.3 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ═══════════════════════════════════════════════
+         GREENHOUSE PERIMETER (10 m wide × 20 m long)
+         Origin at SW corner: x=0, y=-10
+         Robot navigates in +x direction along the rows
+         ═══════════════════════════════════════════════ -->
+
+    <!-- South wall (y = -10) -->
+    <model name="wall_south">
+      <static>true</static>
+      <pose>5.0 -10.0 1.25 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>10.2 0.1 2.5</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>10.2 0.1 2.5</size></box></geometry>
+          <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- North wall (y = +10) -->
+    <model name="wall_north">
+      <static>true</static>
+      <pose>5.0 10.0 1.25 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>10.2 0.1 2.5</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>10.2 0.1 2.5</size></box></geometry>
+          <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- West wall (x = 0) -->
+    <model name="wall_west">
+      <static>true</static>
+      <pose>0.0 0.0 1.25 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.1 20.0 2.5</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.1 20.0 2.5</size></box></geometry>
+          <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- East wall (x = 10) -->
+    <model name="wall_east">
+      <static>true</static>
+      <pose>10.0 0.0 1.25 0 0 0</pose>
+      <link name="link">
+        <collision name="col">
+          <geometry><box><size>0.1 20.0 2.5</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.1 20.0 2.5</size></box></geometry>
+          <material><ambient>0.85 0.85 0.85 1</ambient><diffuse>0.85 0.85 0.85 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Roof beams (3 cross-beams running E-W at x=3, x=6, x=9) -->
+    <model name="beam_1">
+      <static>true</static>
+      <pose>3.0 0.0 2.5 0 1.5708 0</pose>
+      <link name="link">
+        <collision name="col"><geometry><cylinder><radius>0.05</radius><length>20.0</length></cylinder></geometry></collision>
+        <visual name="vis">
+          <geometry><cylinder><radius>0.05</radius><length>20.0</length></cylinder></geometry>
+          <material><ambient>0.6 0.5 0.4 1</ambient><diffuse>0.6 0.5 0.4 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="beam_2">
+      <static>true</static>
+      <pose>6.0 0.0 2.5 0 1.5708 0</pose>
+      <link name="link">
+        <collision name="col"><geometry><cylinder><radius>0.05</radius><length>20.0</length></cylinder></geometry></collision>
+        <visual name="vis">
+          <geometry><cylinder><radius>0.05</radius><length>20.0</length></cylinder></geometry>
+          <material><ambient>0.6 0.5 0.4 1</ambient><diffuse>0.6 0.5 0.4 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="beam_3">
+      <static>true</static>
+      <pose>9.0 0.0 2.5 0 1.5708 0</pose>
+      <link name="link">
+        <collision name="col"><geometry><cylinder><radius>0.05</radius><length>20.0</length></cylinder></geometry></collision>
+        <visual name="vis">
+          <geometry><cylinder><radius>0.05</radius><length>20.0</length></cylinder></geometry>
+          <material><ambient>0.6 0.5 0.4 1</ambient><diffuse>0.6 0.5 0.4 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ═══════════════════════════════════════════════
+         PLANT ROWS  (continuous, impassable)
+         5 rows at y = -3, -1.5, 0, 1.5, 3
+         Each row is one continuous plant wall spanning x=0.8..8.2
+         (length 7.4 m, 0.30 m wide, 1.8 m tall). Corridors ~1.2 m
+         clear; the robot can only cross between rows at the ends.
+         ═══════════════════════════════════════════════ -->
+
+    <model name="row_n3"><static>true</static><pose>4.5 -3.0 0.9 0 0 0</pose><link name="l"><collision name="c"><geometry><box><size>7.4 0.30 1.8</size></box></geometry></collision><visual name="v"><geometry><box><size>7.4 0.30 1.8</size></box></geometry><material><ambient>0.1 0.45 0.1 1</ambient><diffuse>0.12 0.5 0.12 1</diffuse></material></visual></link></model>
+    <model name="row_n15"><static>true</static><pose>4.5 -1.5 0.9 0 0 0</pose><link name="l"><collision name="c"><geometry><box><size>7.4 0.30 1.8</size></box></geometry></collision><visual name="v"><geometry><box><size>7.4 0.30 1.8</size></box></geometry><material><ambient>0.1 0.45 0.1 1</ambient><diffuse>0.12 0.5 0.12 1</diffuse></material></visual></link></model>
+    <model name="row_0"><static>true</static><pose>4.5 0.0 0.9 0 0 0</pose><link name="l"><collision name="c"><geometry><box><size>7.4 0.30 1.8</size></box></geometry></collision><visual name="v"><geometry><box><size>7.4 0.30 1.8</size></box></geometry><material><ambient>0.1 0.45 0.1 1</ambient><diffuse>0.12 0.5 0.12 1</diffuse></material></visual></link></model>
+    <model name="row_p15"><static>true</static><pose>4.5 1.5 0.9 0 0 0</pose><link name="l"><collision name="c"><geometry><box><size>7.4 0.30 1.8</size></box></geometry></collision><visual name="v"><geometry><box><size>7.4 0.30 1.8</size></box></geometry><material><ambient>0.1 0.45 0.1 1</ambient><diffuse>0.12 0.5 0.12 1</diffuse></material></visual></link></model>
+    <model name="row_p3"><static>true</static><pose>4.5 3.0 0.9 0 0 0</pose><link name="l"><collision name="c"><geometry><box><size>7.4 0.30 1.8</size></box></geometry></collision><visual name="v"><geometry><box><size>7.4 0.30 1.8</size></box></geometry><material><ambient>0.1 0.45 0.1 1</ambient><diffuse>0.12 0.5 0.12 1</diffuse></material></visual></link></model>
+
+  </world>
+</sdf>

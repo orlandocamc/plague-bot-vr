@@ -1,0 +1,55 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 50
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+diff_drive_controller:
+  ros__parameters:
+    # NOTE — wheel naming inversion: see docs/adr/0002-wheel-joint-naming-inversion.md
+    left_wheel_names:  ["front_right_wheel_joint", "rear_right_wheel_joint"]
+    right_wheel_names: ["front_left_wheel_joint",  "rear_left_wheel_joint"]
+    wheel_separation: 0.34
+    wheel_radius: 0.0762
+    # Skid-steer compensation: with 4 fixed driven wheels, in-place rotation makes
+    # the wheels scrub, so the ideal diff-drive model over-estimates yaw. Measured
+    # empirically (IMU vs wheel odom on a pure spin): wheel odom reported 1.65x the
+    # real rotation. The multiplier widens the effective track so odom yaw matches.
+    wheel_separation_multiplier: 1.65
+    use_stamped_vel: false
+    publish_rate: 50.0
+    odom_frame_id: odom
+    base_frame_id: base_footprint
+    enable_odom_tf: true
+    cmd_vel_timeout: 0.5
+    linear.x.has_velocity_limits: true
+    linear.x.max_velocity: 0.5
+    linear.x.min_velocity: -0.5
+    angular.z.has_velocity_limits: true
+    angular.z.max_velocity: 1.0
+    angular.z.min_velocity: -1.0
+
+arm_controller:
+  ros__parameters:
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    open_loop_control: true
+    allow_integration_in_goal_trajectories: true
+    allow_nonzero_velocity_at_trajectory_end: false

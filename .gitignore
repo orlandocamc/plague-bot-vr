@@ -9,3 +9,8 @@ src/trac_ik/
 .vscode/
 *.gv
 *.pdf
+
+# slam_toolbox serialized maps — large (tens of MB) and regenerable from a
+# mapping run. The portable Nav2 map (greenhouse.pgm/.yaml) is committed instead.
+*.posegraph
+*.data

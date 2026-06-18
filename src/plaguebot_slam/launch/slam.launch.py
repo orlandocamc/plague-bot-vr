@@ -15,6 +15,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     pkg_slam  = get_package_share_directory('plaguebot_slam')
     pkg_robot = get_package_share_directory('plaguebot_robot')
+    pkg_loc   = get_package_share_directory('plaguebot_localization')
 
     slam_params = os.path.join(pkg_slam, 'config', 'slam_params.yaml')
     rviz_config = os.path.join(pkg_slam, 'config', 'rviz_slam.rviz')
@@ -22,6 +23,14 @@ def generate_launch_description():
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_robot, 'launch', 'sim.launch.py')
+        )
+    )
+
+    # EKF state estimator: fuses wheel odom + IMU and publishes odom->base_footprint.
+    # SLAM consumes this fused TF as its prior instead of raw wheel odometry.
+    localization = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_loc, 'launch', 'localization.launch.py')
         )
     )
 
@@ -68,4 +77,4 @@ def generate_launch_description():
         output='screen',
     )
 
-    return LaunchDescription([sim, slam, configure_slam, activate_slam, rviz])
+    return LaunchDescription([sim, localization, slam, configure_slam, activate_slam, rviz])

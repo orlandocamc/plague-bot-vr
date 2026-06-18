@@ -27,7 +27,11 @@ diff_drive_controller:
     publish_rate: 50.0
     odom_frame_id: odom
     base_frame_id: base_footprint
-    enable_odom_tf: true
+    # The EKF (plaguebot_localization) owns the odom->base_footprint TF now: it
+    # fuses this odom topic with the IMU. If both published the TF they would
+    # fight. The controller still PUBLISHES /diff_drive_controller/odom (the EKF
+    # input); it just no longer broadcasts the transform.
+    enable_odom_tf: false
     cmd_vel_timeout: 0.5
     linear.x.has_velocity_limits: true
     linear.x.max_velocity: 0.5

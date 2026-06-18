@@ -8,6 +8,10 @@ controller_manager:
 
 diff_drive_controller:
   ros__parameters:
+    # NOTE — wheel naming inversion (see docs/adr/0002-wheel-joint-naming-inversion.md):
+    # The URDF joint named "front_right_wheel_joint" is physically on the LEFT side of
+    # the chassis due to the original design. left_wheel_names / right_wheel_names are
+    # intentionally swapped to compensate. This is not a bug.
     left_wheel_names: ["front_right_wheel_joint", "rear_right_wheel_joint"]
     right_wheel_names: ["front_left_wheel_joint", "rear_left_wheel_joint"]
     wheel_separation: 0.34

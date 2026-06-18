@@ -1,6 +1,10 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot">
-    <gazebo>
+    <!-- Arm-only controller_manager — only when running the arm standalone.
+         When is_standalone=false the unified plaguebot_robot URDF provides
+         a single combined controller_manager for base + arm. -->
+    <xacro:if value="$(arg is_standalone)">
+      <gazebo>
         <xacro:if value="$(arg is_ignition)">
             <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
                 <parameters>$(find plaguebot_controller)/config/plaguebot_controllers.yaml</parameters>
@@ -11,5 +15,6 @@
                 <parameters>$(find plaguebot_controller)/config/plaguebot_controllers.yaml</parameters>
             </plugin>
         </xacro:unless>
-    </gazebo>
+      </gazebo>
+    </xacro:if>
 </robot>

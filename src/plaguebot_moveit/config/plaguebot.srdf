@@ -26,6 +26,24 @@
         <joint name="joint_5" value="0"/>
         <joint name="joint_6" value="0"/>
     </group_state>
+    <!--Compact Z-fold for navigation — starting point, refine in MoveIt2 Setup Assistant-->
+    <group_state name="folded" group="arm">
+        <joint name="joint_1" value="0"/>
+        <joint name="joint_2" value="-1.5708"/>
+        <joint name="joint_3" value="1.5708"/>
+        <joint name="joint_4" value="0"/>
+        <joint name="joint_5" value="0"/>
+        <joint name="joint_6" value="0"/>
+    </group_state>
+    <!--Deploy pose for Scanning Routine — D435 angled toward plant row-->
+    <group_state name="deploy" group="arm">
+        <joint name="joint_1" value="0"/>
+        <joint name="joint_2" value="0"/>
+        <joint name="joint_3" value="0"/>
+        <joint name="joint_4" value="0"/>
+        <joint name="joint_5" value="-0.5"/>
+        <joint name="joint_6" value="0"/>
+    </group_state>
     <!--VIRTUAL JOINT: Purpose: this element defines a virtual joint between a robot link and an external frame of reference (considered fixed with respect to the robot)-->
     <virtual_joint name="virtual_joint" type="fixed" parent_frame="world" child_link="base_link"/>
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->

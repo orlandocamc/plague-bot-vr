@@ -4,7 +4,9 @@ from launch.actions import (
     SetEnvironmentVariable, DeclareLaunchArgument
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    Command, LaunchConfiguration, PathJoinSubstitution, PythonExpression
+)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -47,12 +49,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    # headless:=true runs Gazebo server-only (gz sim -s, no GUI), freeing the CPU
+    # the GUI render eats. Useful when running Nav2 + RViz, where the control and
+    # planner loops otherwise starve under the combined sim+GUI load.
+    headless = LaunchConfiguration('headless')
+    gz_args = PythonExpression([
+        "'-r -s ' if '", headless, "' == 'true' else '-r '"
+    ])
+
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             os.path.join(get_package_share_directory('ros_gz_sim'),
                          'launch', 'gz_sim.launch.py')
         ]),
-        launch_arguments={'gz_args': f'-r {world_file}'}.items()
+        launch_arguments={'gz_args': [gz_args, world_file]}.items()
     )
 
     spawn_robot = Node(
@@ -126,6 +136,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument('headless', default_value='false'),
         gz_resource_path,
         robot_state_publisher,
         gazebo,

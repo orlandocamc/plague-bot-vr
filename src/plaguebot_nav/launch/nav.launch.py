@@ -24,19 +24,24 @@ def generate_launch_description():
     autostart    = LaunchConfiguration('autostart')
     map_yaml     = LaunchConfiguration('map')
     params_file  = LaunchConfiguration('params_file')
+    headless     = LaunchConfiguration('headless')
 
     declare_args = [
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('autostart', default_value='true'),
         DeclareLaunchArgument('map', default_value=default_map),
         DeclareLaunchArgument('params_file', default_value=default_params),
+        # headless:=true -> Gazebo runs without its GUI, freeing CPU so the Nav2
+        # control/planner loops don't starve under combined sim + RViz load.
+        DeclareLaunchArgument('headless', default_value='false'),
     ]
 
     # Gazebo + robot + controllers + sensor bridge.
     sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_robot, 'launch', 'sim.launch.py')
-        )
+        ),
+        launch_arguments={'headless': headless}.items()
     )
 
     # EKF: fuses wheel odom + IMU, publishes odom->base_footprint (the Nav2 prior).

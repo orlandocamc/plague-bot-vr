@@ -271,8 +271,12 @@ Launch: `launch/mission.launch.py` — includes `nav2.launch.py` + rosbridge_web
 Package type: `ament_python`.
 
 - Subscribes: `/d435/image_raw`, `/d435/depth/points`
-- Model: YOLOv8n exported to NCNN format (`yolo export model=yolov8n.pt format=ncnn`)
-- Inference: CPU via NCNN Python bindings (no Hailo, no MindSpore)
+- **Pluggable inference backend** (`backend` param) — see ADR-0003:
+  - `mock` (sim default): synthetic Detection on nearest plant, no model
+  - `torch`: Ultralytics PyTorch on `best.pt` (dev/sim)
+  - `ncnn`: NCNN CPU on `best.pt` exported to NCNN (dev/sim)
+  - `hailo`: HailoRT on the trained `best.hef` (real robot, Raspberry Pi)
+- Model: trained tomato pest/disease model (`best.pt` for CPU, `best.hef` for Hailo)
 - Service: `/perception/detect` → returns list of detections with 3D position (bbox centroid reprojected into depth PointCloud)
 - Publishes: `/perception/detections` (`visualization_msgs/msg/MarkerArray`)
 
@@ -286,7 +290,7 @@ Package type: `ament_python`.
 | 2 | `is_sim:=true` → loads `gz_ros2_control/GazeboSimSystem`; `is_sim:=false` → loads `plaguebot_firmware/PlaguebotInterface` |
 | 3 | Mesh collision geometry in `plaguebot_description/urdf/plaguebot.urdf.xacro` must not be modified (digital twin calibration) |
 | 4 | One package per concern — no monolithic packages |
-| 5 | AI inference: YOLOv8n via NCNN on CPU only |
+| 5 | AI inference: pluggable backend (see ADR-0003) — `hailo` (.hef) on the real robot, `torch`/`ncnn` on CPU for dev/sim, `mock` for sim testing |
 | 6 | All 4 wheels driven in simulation; only front pair on real robot |
 | 7 | Camera topics: `/kiyo/` namespace for chassis RGB; `/d435/` namespace for arm RGBD |
 

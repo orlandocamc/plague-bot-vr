@@ -1,0 +1,7 @@
+# Run YOLOv8n (NCNN) inference on the latest D435 frame and reproject each
+# bounding-box centroid into the depth point cloud for a 3D position.
+# Request is empty: the perception node uses the most recent image + cloud.
+---
+bool success
+string message
+plaguebot_msgs/Detection[] detections

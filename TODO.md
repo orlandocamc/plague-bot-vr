@@ -70,60 +70,62 @@
 
 ## Phase 4: Nav2
 
-- [ ] `sudo apt install ros-jazzy-nav2-bringup ros-jazzy-robot-localization`
-- [ ] Create package `plaguebot_nav` (ament_cmake)
-- [ ] Write `config/nav2_params.yaml` (AMCL, BT navigator, planner, controller — standard nav2_bringup defaults as starting point)
-- [ ] Write `config/ekf.yaml` (fuse `/odom` + `/imu/data` → `/odometry/filtered`, `use_sim_time: true`)
-- [ ] Write `launch/nav2.launch.py` (includes `sim.launch.py` + `nav2_bringup` + `robot_localization` EKF node)
-- [ ] Test: publish 2D Nav Goal in RViz → robot navigates to goal in greenhouse without hitting plant rows
-- [ ] Write `plaguebot_nav/nav_arm_coordinator.py`:
-  - [ ] On goal received → MoveIt2 `folded` state (action client to `/move_group`)
-  - [ ] On goal succeeded → MoveIt2 `deploy` state
-- [ ] Test: arm folds before navigation, deploys on arrival
+- [x] `sudo apt install ros-jazzy-nav2-bringup ros-jazzy-robot-localization`
+- [x] Create package `plaguebot_nav` (ament_cmake)
+- [x] Write `config/nav2_params.yaml` (AMCL, BT navigator, planner, controller — switched MPPI → Regulated Pure Pursuit)
+- [x] Write `config/ekf.yaml` — lives in **`plaguebot_localization`** package (deviation from SPEC §5, which placed it in plaguebot_nav)
+- [x] Write `launch/nav.launch.py` (includes `sim.launch.py` + `nav2_bringup` localization+navigation + EKF + RViz; `headless` arg)
+- [ ] Test: publish 2D Nav Goal in RViz → robot navigates to goal in greenhouse without hitting plant rows  ← runtime, not yet confirmed
+- [~] nav-arm coordinator (§5.1) → **subsumed into `plaguebot_mission/mission_node.py`** (folds before NAVIGATE, deploys on arrival). No standalone coordinator node. See ADR decision.
+- [ ] Test: arm folds before navigation, deploys on arrival  ← runtime, not yet confirmed
 - [ ] Refine `folded` and `deploy` joint values in MoveIt2 Setup Assistant using the unified URDF in RViz
 
 ---
 
 ## Phase 5: Mission Execution
 
+> **Perception backend change (ADR-0003):** SPEC's "YOLOv8n NCNN, no Hailo" is
+> superseded. perception_node has a pluggable `backend`: `mock` (sim default),
+> `torch`/`ncnn` on `best.pt` (dev), `hailo` on `best.hef` (real robot). SPEC §6.3
+> and Constraint #5 updated.
+
 ### Setup
 
-- [ ] `sudo apt install ros-jazzy-rosbridge-suite ros-jazzy-image-transport ros-jazzy-cv-bridge`
-- [ ] `pip install ultralytics` (for NCNN model export)
-- [ ] Export YOLOv8n to NCNN: `yolo export model=yolov8n.pt format=ncnn`
+- [x] `image-transport` + `cv-bridge` already installed
+- [x] `sudo apt install ros-jazzy-rosbridge-suite`
+- [~] `ultralytics` + `ncnn` installing in workspace `.venv` (--system-site-packages); slow (torch). Background job.
+- [~] Export model to NCNN — generic yolov8n export running to validate toolchain; **real export will use `best.pt`** once copied to `models/`
 
 ### `plaguebot_perception` package
 
-- [ ] Create package (ament_python)
-- [ ] Write `perception_node.py`:
-  - [ ] Subscribes to `/d435/image_raw` + `/d435/depth/points`
-  - [ ] Loads YOLOv8n NCNN model
-  - [ ] Implements `/perception/detect` service (`std_srvs/srv/Trigger` or custom msg in `plaguebot_msgs`)
-  - [ ] On service call: run inference on latest frame, reproject bbox centroid into PointCloud2 for 3D position
-  - [ ] Returns detection list; publishes `/perception/detections` MarkerArray
+- [x] Create package (ament_python)
+- [x] `backends.py`: mock / torch / ncnn / hailo(stub) with lazy imports
+- [x] `perception_node.py`: subscribes `/d435/image_raw` + `/d435/depth/points`; `/perception/detect` service (`plaguebot_msgs/srv/Detect`); reprojects bbox centroid into organized PointCloud2; publishes `/perception/detections` MarkerArray
+- [x] `plaguebot_msgs`: added `Detection.msg` + `Detect.srv` (geometry_msgs dep)
+- [x] `launch/perception.launch.py` (backend arg)
+- [ ] Drop `best.pt` in `models/`, set `backend:=torch` (or `ncnn`), verify real inference
+- [ ] Implement `HailoBackend.infer` on the Raspberry Pi against `best.hef`
 
 ### `plaguebot_mission` package
 
-- [ ] Create package (ament_python)
-- [ ] Write `mission_node.py` implementing the 8-state machine (IDLE → NAVIGATE → DEPLOY → SCAN → DETECT → IK_POSITION → RETURN → IDLE)
-  - [ ] Subscribe to `/mission/start` (PoseStamped)
-  - [ ] Nav2 `NavigateToPose` action client
-  - [ ] MoveIt2 `MoveGroup` action client (for `folded` / `deploy` transitions)
-  - [ ] JointTrajectory publisher for Scanning Routine (joint_1: -0.5 → +0.5 rad, 4s)
-  - [ ] Service client for `/perception/detect`
-  - [ ] MoveIt2 IK call (`ComputeIK`) on detection
-- [ ] Write `launch/mission.launch.py` (includes `nav2.launch.py` + `rosbridge_websocket` + `mission_node` + `perception_node`)
+- [x] Create package (ament_python)
+- [x] `mission_node.py`: 8-state machine (IDLE→NAVIGATE→DEPLOY→SCAN→DETECT→IK_POSITION→RETURN→IDLE)
+  - [x] Subscribe to `/mission/start` (PoseStamped)
+  - [x] Nav2 `NavigateToPose` action client
+  - [x] Arm motions (folded/deploy/return) via `arm_controller` FollowJointTrajectory — **deviation from SPEC** (which used MoveGroup); fixed joint configs don't need planning, far more robust in sim
+  - [x] Scanning Routine: joint_1 sweep -0.5 → +0.5 over 4s
+  - [x] Service client for `/perception/detect`
+  - [x] IK via MoveIt `/compute_ik` service (best-effort; skipped if move_group not up)
+- [x] `launch/mission.launch.py` (includes `nav.launch.py` + rosbridge + http web server + perception + mission; `use_moveit` arg)
 
 ### VR WebXR page
 
-- [ ] Write `plaguebot_mission/web/index.html`:
-  - [ ] Waypoint x/y number inputs
-  - [ ] "Start Mission" button
-  - [ ] roslib.js WebSocket connection to `ws://<robot-ip>:9090`
-  - [ ] On click: publish `/mission/start` PoseStamped (map frame, stamp=now)
-- [ ] Serve from robot: `python3 -m http.server 8080` in the web directory (or include in launch)
-- [ ] Test: open page in Quest 3 browser, verify `/mission/start` appears in `ros2 topic echo`
+- [x] `plaguebot_mission/web/index.html`: x/y inputs, Start button, roslib.js, reconnect, publishes `/mission/start` PoseStamped (map, stamp=now)
+- [x] Served via `python3 -m http.server 8080` from mission.launch.py
+- [ ] Test: open page in Quest 3 browser, verify `/mission/start` in `ros2 topic echo` (needs rosbridge installed)
 
-### End-to-end test
+### End-to-end test (all runtime — pending)
 
-- [ ] Full mission: Quest button press → robot navigates to plant row → arm deploys → Scanning Routine executes → detection logged → arm folds → robot returns
+- [ ] `colcon build` full workspace + launch `mission.launch.py headless:=true`
+- [ ] Mock mission in sim: button press → navigate → deploy → scan → mock detect → (IK) → fold → return
+- [ ] Swap `backend:=torch` with `best.pt`; later `hailo` on the real robot

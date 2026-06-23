@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plague-Bot — Control de Misión</title>
+  <!-- roslib.js habla con rosbridge_websocket en el robot (SPEC §6.1) -->
+  <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+  <style>
+    :root { --green:#3fae6a; --bg:#11231b; --card:#1c3329; }
+    * { box-sizing:border-box; }
+    body { font-family:system-ui, sans-serif; background:var(--bg); color:#e6f0ea;
+           margin:0; padding:1.5rem; display:flex; flex-direction:column;
+           align-items:center; gap:1rem; }
+    h1 { font-size:1.3rem; margin:.2rem; }
+    .wrap { display:flex; gap:1.5rem; flex-wrap:wrap; justify-content:center;
+            align-items:flex-start; }
+    .card { background:var(--card); padding:1.2rem 1.4rem; border-radius:12px;
+            box-shadow:0 4px 16px rgba(0,0,0,.4); }
+    #mapWrap { position:relative; line-height:0; }
+    canvas { border-radius:8px; cursor:crosshair; background:#0c160f; }
+    .panel { width:min(300px,90vw); }
+    label { display:block; margin:.6rem 0 .2rem; font-size:.9rem; opacity:.85; }
+    input { width:100%; padding:.55rem; border-radius:8px; border:none;
+            font-size:1.05rem; }
+    .row { display:flex; gap:.6rem; }
+    .row > div { flex:1; }
+    button { margin-top:1.1rem; width:100%; padding:.9rem; font-size:1.05rem;
+             border:none; border-radius:10px; background:var(--green);
+             color:#06140d; font-weight:700; cursor:pointer; }
+    button:disabled { background:#5c6b62; cursor:not-allowed; }
+    #status { margin-top:.9rem; font-size:.9rem; }
+    .dot { display:inline-block; width:.7rem; height:.7rem; border-radius:50%;
+           background:#c0392b; margin-right:.4rem; }
+    .dot.ok { background:var(--green); }
+    .hint { font-size:.8rem; opacity:.7; margin-top:.5rem; }
+    .legend { font-size:.78rem; opacity:.75; margin-top:.6rem; line-height:1.4; }
+  </style>
+</head>
+<body>
+  <h1>🌱 Plague-Bot — Control de Misión</h1>
+  <div class="wrap">
+    <div class="card" id="mapWrap">
+      <canvas id="map"></canvas>
+    </div>
+
+    <div class="card panel">
+      <label for="host">URL del robot (rosbridge)</label>
+      <input id="host" value="ws://localhost:9090" />
+
+      <div class="row">
+        <div>
+          <label for="wx">Waypoint X (m)</label>
+          <input id="wx" type="number" step="0.1" />
+        </div>
+        <div>
+          <label for="wy">Waypoint Y (m)</label>
+          <input id="wy" type="number" step="0.1" />
+        </div>
+      </div>
+
+      <p class="hint">Haz clic en el mapa para fijar el Waypoint (o escribe X/Y).</p>
+
+      <button id="start" disabled>Iniciar Misión</button>
+      <div id="status"><span class="dot" id="dot"></span><span id="msg">conectando…</span></div>
+
+      <div class="legend">
+        🟢 Waypoint seleccionado &nbsp;·&nbsp; las zonas oscuras son obstáculos
+        (paredes / hileras de plantas) del mapa SLAM.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Mapa: pixel <-> coordenadas del mundo (igual que map_server) -------
+    let META = null, SCALE = 1, picked = null;
+    const canvas = document.getElementById('map');
+    const ctx = canvas.getContext('2d');
+    const mapImg = new Image();
+    const wxIn = document.getElementById('wx');
+    const wyIn = document.getElementById('wy');
+
+    fetch('map_meta.json')
+      .then(r => r.json())
+      .then(meta => { META = meta; mapImg.src = 'greenhouse.png'; })
+      .catch(() => { document.getElementById('msg').textContent =
+        'no pude cargar el mapa (map_meta.json)'; });
+
+    mapImg.onload = () => {
+      // Escala para caber en ~560 px de alto manteniendo proporción.
+      SCALE = Math.max(1, Math.round((560 / META.height) * 10) / 10);
+      canvas.width = META.width * SCALE;
+      canvas.height = META.height * SCALE;
+      draw();
+    };
+
+    function draw() {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(mapImg, 0, 0, canvas.width, canvas.height);
+      if (picked) {
+        const px = picked.col * SCALE, py = picked.row * SCALE;
+        ctx.strokeStyle = '#3fae6a';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(px, py, 8, 0, 2 * Math.PI); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px - 13, py); ctx.lineTo(px + 13, py);
+        ctx.moveTo(px, py - 13); ctx.lineTo(px, py + 13); ctx.stroke();
+      }
+    }
+
+    // ROS map_server: origen = esquina inferior-izquierda; fila 0 = arriba (max Y).
+    function pixelToWorld(col, row) {
+      const res = META.resolution, ox = META.origin[0], oy = META.origin[1];
+      return { x: ox + col * res, y: oy + (META.height - row) * res };
+    }
+    function worldToPixel(x, y) {
+      const res = META.resolution, ox = META.origin[0], oy = META.origin[1];
+      return { col: (x - ox) / res, row: META.height - (y - oy) / res };
+    }
+
+    canvas.addEventListener('click', (e) => {
+      if (!META) return;
+      const rect = canvas.getBoundingClientRect();
+      const col = (e.clientX - rect.left) / SCALE;
+      const row = (e.clientY - rect.top) / SCALE;
+      const w = pixelToWorld(col, row);
+      wxIn.value = w.x.toFixed(2);
+      wyIn.value = w.y.toFixed(2);
+      picked = { col, row };
+      draw();
+    });
+
+    // Si el usuario escribe X/Y a mano, mover el marcador.
+    function syncFromInputs() {
+      if (!META || wxIn.value === '' || wyIn.value === '') return;
+      picked = worldToPixel(parseFloat(wxIn.value), parseFloat(wyIn.value));
+      draw();
+    }
+    wxIn.addEventListener('change', syncFromInputs);
+    wyIn.addEventListener('change', syncFromInputs);
+
+    // ---- Conexión rosbridge + publicación del Waypoint ----------------------
+    let ros = null, missionTopic = null;
+    const dot = document.getElementById('dot');
+    const msg = document.getElementById('msg');
+    const startBtn = document.getElementById('start');
+    const hostInput = document.getElementById('host');
+
+    function connect() {
+      if (ros) { try { ros.close(); } catch (e) {} }
+      ros = new ROSLIB.Ros({ url: hostInput.value });
+      ros.on('connection', () => {
+        dot.classList.add('ok');
+        msg.textContent = 'conectado a ' + hostInput.value;
+        startBtn.disabled = false;
+      });
+      ros.on('error', () => {
+        dot.classList.remove('ok');
+        msg.textContent = 'error de conexión';
+        startBtn.disabled = true;
+      });
+      ros.on('close', () => {
+        dot.classList.remove('ok');
+        msg.textContent = 'desconectado — reintentando en 3 s';
+        startBtn.disabled = true;
+        setTimeout(connect, 3000);
+      });
+      missionTopic = new ROSLIB.Topic({
+        ros: ros,
+        name: '/mission/start',
+        messageType: 'geometry_msgs/msg/PoseStamped'
+      });
+    }
+
+    function startMission() {
+      if (wxIn.value === '' || wyIn.value === '') {
+        msg.textContent = 'elige un Waypoint primero'; return;
+      }
+      const x = parseFloat(wxIn.value), y = parseFloat(wyIn.value);
+      const now = Date.now();
+      const pose = new ROSLIB.Message({
+        header: {
+          stamp: { sec: Math.floor(now / 1000), nanosec: (now % 1000) * 1e6 },
+          frame_id: 'map'
+        },
+        pose: {
+          position: { x: x, y: y, z: 0.0 },
+          orientation: { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+        }
+      });
+      missionTopic.publish(pose);
+      msg.textContent = `misión enviada → (${x.toFixed(2)}, ${y.toFixed(2)})`;
+    }
+
+    hostInput.addEventListener('change', connect);
+    startBtn.addEventListener('click', startMission);
+    connect();
+  </script>
+</body>
+</html>

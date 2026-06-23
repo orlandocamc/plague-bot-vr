@@ -1,6 +1,11 @@
 build/
 install/
 log/
+.venv/
+
+# Perception model weights — large and not regenerable from source.
+# best.pt (CPU/sim), best.hef (Hailo, real robot), NCNN exports live here.
+models/
 *.pyc
 __pycache__/
 .cache/

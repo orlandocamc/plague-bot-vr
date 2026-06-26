@@ -26,11 +26,16 @@ from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PointStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
 from nav2_msgs.action import NavigateToPose
 from moveit_msgs.srv import GetPositionIK
+
+import tf2_ros
+from rclpy.time import Time
+from rclpy.duration import Duration as RclDuration
+import tf2_geometry_msgs  # noqa: F401  (registers PointStamped transforms)
 
 from plaguebot_msgs.srv import Detect
 
@@ -55,15 +60,24 @@ class MissionNode(Node):
                                ['joint_1', 'joint_2', 'joint_3',
                                 'joint_4', 'joint_5', 'joint_6'])
         self.declare_parameter('folded', [0.0, -1.5708, 1.5708, 0.0, 0.0, 0.0])
-        self.declare_parameter('deploy', [0.0, 0.0, 0.0, 0.0, -0.5, 0.0])
+        # deploy: shoulder pitched forward + wrist tilted down so the D435 looks
+        # at the plant-row foliage to the robot's side. Tuned empirically against
+        # the sim depth cloud in a corridor (~0.6 m median return, ~49% valid).
+        self.declare_parameter('deploy', [0.0, -0.4, 0.0, 0.0, -0.6, 0.0])
         self.declare_parameter('scan_min', -0.5)
         self.declare_parameter('scan_max', 0.5)
         self.declare_parameter('scan_duration', 4.0)
         self.declare_parameter('arm_move_duration', 3.0)
         self.declare_parameter('planning_group', 'arm')
         self.declare_parameter('ik_link', 'wrist_2_link')
-        self.declare_parameter('return_x', 0.0)
-        self.declare_parameter('return_y', 0.0)
+        # move_group runs the standalone arm model rooted at base_link, so the
+        # detection point (in the camera optical frame) must be transformed into
+        # base_link before /compute_ik — see ADR-0003 / mission docstring.
+        self.declare_parameter('ik_frame', 'base_link')
+        # Home/dock to return to after a mission — the robot spawn (open floor
+        # south of the plant rows). (0,0) is a map corner and not reachable.
+        self.declare_parameter('return_x', 0.5)
+        self.declare_parameter('return_y', -5.0)
         self.declare_parameter('use_ik', True)
 
         self.joint_names = list(self.get_parameter('joint_names').value)
@@ -72,6 +86,12 @@ class MissionNode(Node):
 
         self._state = State.IDLE
         self._busy = threading.Lock()
+
+        # TF, to express the detection point in the IK frame (base_link). The
+        # camera optical frame isn't in move_group's standalone model, but it is
+        # in the live TF tree published by the unified robot.
+        self._tf_buffer = tf2_ros.Buffer()
+        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
 
         self._nav = ActionClient(self, NavigateToPose, '/navigate_to_pose',
                                  callback_group=cb)
@@ -177,7 +197,11 @@ class MissionNode(Node):
         traj.joint_names = self.joint_names
         base = list(self.deploy)
         points = []
-        for frac, j1 in ((0.25, smin), (1.0, smax)):
+        # Sweep joint_1 min -> max, then recenter to the deploy pose so DETECT
+        # and IK_POSITION run from a known, stable configuration (the camera
+        # yaw at scan end would otherwise move the detection point and make the
+        # local KDL IK solver fail).
+        for frac, j1 in ((0.25, smin), (0.75, smax), (1.0, base[0])):
             pt = JointTrajectoryPoint()
             pos = list(base)
             pos[0] = j1
@@ -205,12 +229,17 @@ class MissionNode(Node):
         if not self._ik.wait_for_service(timeout_sec=5.0):
             self.get_logger().warn('/compute_ik unavailable; skipping IK_POSITION')
             return False
+        ik_frame = self.get_parameter('ik_frame').value
+        point = self._to_ik_frame(detection.position, ik_frame)
+        if point is None:
+            self.get_logger().warn(
+                f'could not transform detection into {ik_frame}; skipping IK')
+            return False
         req = GetPositionIK.Request()
         req.ik_request.group_name = self.get_parameter('planning_group').value
         req.ik_request.ik_link_name = self.get_parameter('ik_link').value
-        req.ik_request.pose_stamped.header.frame_id = \
-            detection.position.header.frame_id
-        req.ik_request.pose_stamped.pose.position = detection.position.point
+        req.ik_request.pose_stamped.header.frame_id = ik_frame
+        req.ik_request.pose_stamped.pose.position = point
         req.ik_request.pose_stamped.pose.orientation.w = 1.0
         req.ik_request.timeout.sec = 1
         resp = self._ik.call(req)
@@ -223,6 +252,26 @@ class MissionNode(Node):
         target = [order.get(n, 0.0) for n in self.joint_names]
         self.get_logger().info('IK solved; moving gripper to detection')
         return self._move_arm(target)
+
+    def _to_ik_frame(self, point_stamped, target_frame):
+        """Transform a detection PointStamped into target_frame via tf2.
+
+        Returns the geometry_msgs/Point in target_frame, or None on failure.
+        If the point is already in target_frame, returns it unchanged.
+        """
+        if point_stamped.header.frame_id == target_frame:
+            return point_stamped.point
+        src = PointStamped()
+        src.header.frame_id = point_stamped.header.frame_id
+        src.header.stamp = Time().to_msg()  # latest available transform
+        src.point = point_stamped.point
+        try:
+            out = self._tf_buffer.transform(
+                src, target_frame, timeout=RclDuration(seconds=2.0))
+            return out.point
+        except Exception as exc:  # noqa: BLE001
+            self.get_logger().warn(f'tf transform to {target_frame} failed: {exc}')
+            return None
 
     # ----- helpers -------------------------------------------------------
 

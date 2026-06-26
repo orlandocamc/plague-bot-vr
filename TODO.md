@@ -77,8 +77,11 @@
 - [x] Write `launch/nav.launch.py` (includes `sim.launch.py` + `nav2_bringup` localization+navigation + EKF + RViz; `headless` arg)
 - [ ] Test: publish 2D Nav Goal in RViz → robot navigates to goal in greenhouse without hitting plant rows  ← runtime, not yet confirmed
 - [~] nav-arm coordinator (§5.1) → **subsumed into `plaguebot_mission/mission_node.py`** (folds before NAVIGATE, deploys on arrival). No standalone coordinator node. See ADR decision.
-- [ ] Test: arm folds before navigation, deploys on arrival  ← runtime, not yet confirmed
-- [ ] Refine `folded` and `deploy` joint values in MoveIt2 Setup Assistant using the unified URDF in RViz
+- [x] Test: arm folds before navigation, deploys on arrival  ← verified in sim
+- [x] Refine `deploy` joint values — tuned empirically vs sim depth cloud to
+  `[0,-0.4,0,0,-0.6,0]` (D435 looks down at foliage row, ~49% valid depth,
+  median ~0.6 m). Updated in mission_node default + SRDF `deploy` group_state.
+- [ ] Refine `folded` joint values (current Z-fold is functional)
 
 ---
 
@@ -115,7 +118,17 @@
   - [x] Arm motions (folded/deploy/return) via `arm_controller` FollowJointTrajectory — **deviation from SPEC** (which used MoveGroup); fixed joint configs don't need planning, far more robust in sim
   - [x] Scanning Routine: joint_1 sweep -0.5 → +0.5 over 4s
   - [x] Service client for `/perception/detect`
-  - [x] IK via MoveIt `/compute_ik` service (best-effort; skipped if move_group not up)
+  - [x] IK via MoveIt `/compute_ik` (best-effort) — VERIFIED with `use_moveit:=true`.
+    move_group loads the unified robot model (via the `/robot_description` topic
+    fallback; SRDF name mismatch is non-fatal). mission_node now transforms the
+    detection point (frame `d435_link`) into `base_link` via tf2 before IK, and
+    SCAN recenters to `deploy` so DETECT/IK run from a stable pose.
+  - [x] FINDING: the PROTON arm reach (~0.5 m) < corridor standoff to the row
+    (~0.6–0.75 m), so `/compute_ik` returns NO_IK_SOLUTION (-31) for real
+    detections (only points ~at the wrist are reachable). IK_POSITION skips
+    gracefully. DECISION NEEDED: drive the base closer before IK, or redefine
+    IK_POSITION as a camera "look-at" (joint_1 yaw + wrist tilt) instead of a
+    reach — inspection only needs to aim the camera, not touch the pest.
 - [x] `launch/mission.launch.py` (includes `nav.launch.py` + rosbridge + http web server + perception + mission; `use_moveit` arg)
 
 ### VR WebXR page

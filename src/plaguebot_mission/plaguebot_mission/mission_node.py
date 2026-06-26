@@ -62,7 +62,10 @@ class MissionNode(Node):
         self.declare_parameter('joint_names',
                                ['joint_1', 'joint_2', 'joint_3',
                                 'joint_4', 'joint_5', 'joint_6'])
-        self.declare_parameter('folded', [0.0, -1.5708, 1.5708, 0.0, 0.0, 0.0])
+        # folded: compact Z-fold for navigation, wrist tucked (joint_5=1.4) so the
+        # D435 faces down/in — lowest profile (~0.50 m) and the lens is protected
+        # from brushing foliage. Stays within the base footprint (~0.10 m radius).
+        self.declare_parameter('folded', [0.0, -1.5708, 1.5708, 0.0, 1.4, 0.0])
         # deploy: shoulder pitched forward + wrist tilted down so the D435 looks
         # at the plant-row foliage to the robot's side. Tuned empirically against
         # the sim depth cloud in a corridor (~0.6 m median return, ~49% valid).

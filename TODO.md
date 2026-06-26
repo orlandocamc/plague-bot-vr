@@ -81,7 +81,9 @@
 - [x] Refine `deploy` joint values — tuned empirically vs sim depth cloud to
   `[0,-0.4,0,0,-0.6,0]` (D435 looks down at foliage row, ~49% valid depth,
   median ~0.6 m). Updated in mission_node default + SRDF `deploy` group_state.
-- [ ] Refine `folded` joint values (current Z-fold is functional)
+- [x] Refine `folded` joint values — kept the proven Z-fold and tucked the wrist
+  (`joint_5=1.4`) so the D435 faces down/in: lowest profile (~0.50 m), lens
+  protected, within the base footprint. Updated mission_node + SRDF.
 
 ---
 
@@ -106,7 +108,12 @@
 - [x] `perception_node.py`: subscribes `/d435/image_raw` + `/d435/depth/points`; `/perception/detect` service (`plaguebot_msgs/srv/Detect`); reprojects bbox centroid into organized PointCloud2; publishes `/perception/detections` MarkerArray
 - [x] `plaguebot_msgs`: added `Detection.msg` + `Detect.srv` (geometry_msgs dep)
 - [x] `launch/perception.launch.py` (backend arg)
-- [ ] Drop `best.pt` in `models/`, set `backend:=torch` (or `ncnn`), verify real inference
+- [x] Drop `best.pt` in `models/`, set `backend:=torch`, verify real inference —
+  VALIDATED: torch loads `best.pt` and runs on the sim D435 image, returns
+  `0 detections` (expected — sim foliage is plain green boxes). Toolchain works.
+  NOTE: run `perception_node` with the venv python so ultralytics is importable,
+  e.g. `.venv/bin/python install/plaguebot_perception/lib/plaguebot_perception/perception_node --ros-args -p backend:=torch -p model_path:=$PWD/models/best.pt`.
+  (`mock` still uses system python via the normal launch.)
 - [ ] Implement `HailoBackend.infer` on the Raspberry Pi against `best.hef`
 
 ### `plaguebot_mission` package
@@ -136,6 +143,28 @@
 
 ### End-to-end test (all runtime — pending)
 
-- [ ] `colcon build` full workspace + launch `mission.launch.py headless:=true`
-- [ ] Mock mission in sim: button press → navigate → deploy → scan → mock detect → (IK) → fold → return
-- [ ] Swap `backend:=torch` with `best.pt`; later `hailo` on the real robot
+- [x] `colcon build` full workspace + launch `mission.launch.py`
+- [x] Mock mission in sim: button press → navigate → deploy → scan → mock detect → AIM → fold → return  ✅ verified
+- [x] Swap `backend:=torch` with `best.pt` (validated, 0 detections in sim); later `hailo` on the real robot
+
+---
+
+## Phase 6: Dashboard integration (Mario's robot-cultivos)
+
+Integrate with the full-stack dashboard at github.com/MarioUrenaGarcia/robot-cultivos
+(FastAPI + PostgreSQL + MinIO + Next.js 14). See `docs/INTEGRACION_ROBOT.md` there.
+Two directions:
+
+### A. Robot → dashboard (data — the bigger payoff)
+- [ ] perception/mission POSTs each detection cycle to `POST /robot/datos`
+  (header `x-api-key`), mapping our classes (EnfermedadCalor/TomatoReady/...) to
+  their schema (`tipo` plaga|enfermedad|tomate_maduro, `etiqueta`, `confianza`,
+  `posicion {x,y}`). New small ROS node or HTTP call from mission_node.
+- [ ] POST the detection crop/image to `POST /robot/foto` (multipart, `sesion_id`).
+- [ ] Decide connectivity (robot Pi → backend host): same LAN URL + API key.
+
+### B. Dashboard → robot (control — port the nav page)
+- [ ] Add a Next.js route (e.g. `app/navegacion/page.tsx`) that ports our
+  clickable greenhouse map (`web/index.html`): load map + meta, click→world,
+  roslib.js over rosbridge (`ws://<robot>:9090`), publish `/mission/start`.
+- [ ] Decide how the dashboard reaches rosbridge (robot URL/port; CORS/proxy).

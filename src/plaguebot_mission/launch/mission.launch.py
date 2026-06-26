@@ -28,10 +28,17 @@ def generate_launch_description():
 
     backend = LaunchConfiguration('backend')
     headless = LaunchConfiguration('headless')
+    dashboard = LaunchConfiguration('dashboard')
+    backend_url = LaunchConfiguration('backend_url')
+    api_key = LaunchConfiguration('api_key')
 
     declared = [
         DeclareLaunchArgument('backend', default_value='mock'),
         DeclareLaunchArgument('headless', default_value='false'),
+        # Phase 6A: forward detections to Mario's robot-cultivos backend.
+        DeclareLaunchArgument('dashboard', default_value='false'),
+        DeclareLaunchArgument('backend_url', default_value='http://localhost:8000'),
+        DeclareLaunchArgument('api_key', default_value='changeme'),
     ]
 
     nav = IncludeLaunchDescription(
@@ -54,6 +61,21 @@ def generate_launch_description():
         parameters=[{'use_sim_time': True}],
     )
 
+    # Phase 6A bridge: POST detections to the dashboard backend. Off by default;
+    # enable with dashboard:=true backend_url:=... api_key:=...
+    dashboard_bridge = Node(
+        package='plaguebot_mission',
+        executable='dashboard_bridge',
+        name='dashboard_bridge',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'enabled': dashboard,
+            'backend_url': backend_url,
+            'api_key': api_key,
+        }],
+    )
+
     # VR interface: rosbridge WebSocket on :9090 (SPEC §6.1).
     rosbridge = Node(
         package='rosbridge_server',
@@ -72,7 +94,7 @@ def generate_launch_description():
     # Give the sim + Nav2 time to come up before mission/perception attach.
     delayed = TimerAction(
         period=12.0,
-        actions=[perception, mission, rosbridge, web_server],
+        actions=[perception, mission, dashboard_bridge, rosbridge, web_server],
     )
 
     return LaunchDescription(declared + [nav, delayed])

@@ -156,10 +156,16 @@ Integrate with the full-stack dashboard at github.com/MarioUrenaGarcia/robot-cul
 Two directions:
 
 ### A. Robot → dashboard (data — the bigger payoff)
-- [ ] perception/mission POSTs each detection cycle to `POST /robot/datos`
-  (header `x-api-key`), mapping our classes (EnfermedadCalor/TomatoReady/...) to
-  their schema (`tipo` plaga|enfermedad|tomate_maduro, `etiqueta`, `confianza`,
-  `posicion {x,y}`). New small ROS node or HTTP call from mission_node.
+- [x] perception/mission POSTs each detection cycle to `POST /robot/datos`
+  (header `x-api-key`), mapping our classes to their schema (`tipo`
+  plaga|enfermedad|tomate_maduro, `etiqueta`, `confianza`, `posicion {x,y}`).
+  Done via a new `dashboard_bridge` node: mission_node publishes
+  `/mission/detections` (DetectionArray) after DETECT; the bridge maps classes,
+  transforms each point into the `map` frame (tf2) for world (x,y), and POSTs.
+  VERIFIED end-to-end in sim against a stub backend (correct schema + api key).
+  Enable: `mission.launch.py dashboard:=true backend_url:=... api_key:=...`.
+  - [ ] CONFIRM class→tipo map with Mario (TomatoNotReady has no exact `tipo`;
+    currently → tomate_maduro). Param `class_map_json` on dashboard_bridge.
 - [ ] POST the detection crop/image to `POST /robot/foto` (multipart, `sesion_id`).
 - [ ] Decide connectivity (robot Pi → backend host): same LAN URL + API key.
 

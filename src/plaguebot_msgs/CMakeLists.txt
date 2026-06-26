@@ -14,11 +14,12 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Detection.msg"
+  "msg/DetectionArray.msg"
   "srv/AddTwoInts.srv"
   "srv/EulerToQuaternion.srv"
   "srv/QuaternionToEuler.srv"
   "srv/Detect.srv"
-  DEPENDENCIES geometry_msgs
+  DEPENDENCIES geometry_msgs std_msgs
 )
 
 

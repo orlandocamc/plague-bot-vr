@@ -40,7 +40,9 @@ from rclpy.time import Time
 from rclpy.duration import Duration as RclDuration
 import tf2_geometry_msgs  # noqa: F401  (registers PointStamped transforms)
 
+from std_msgs.msg import Header
 from plaguebot_msgs.srv import Detect
+from plaguebot_msgs.msg import DetectionArray
 
 
 class State(Enum):
@@ -108,6 +110,10 @@ class MissionNode(Node):
                                  callback_group=cb)
         self._detect = self.create_client(Detect, '/perception/detect',
                                           callback_group=cb)
+        # Publish each cycle's detections so the dashboard bridge (Phase 6) can
+        # forward them to the web backend, decoupled from the mission logic.
+        self._det_pub = self.create_publisher(
+            DetectionArray, '/mission/detections', 10)
 
         self.create_subscription(PoseStamped, '/mission/start',
                                  self._on_start, 10, callback_group=cb)
@@ -140,6 +146,13 @@ class MissionNode(Node):
 
             self._set_state(State.DETECT)
             detections = self._run_detect()
+            if detections:
+                msg = DetectionArray()
+                msg.header = Header()
+                msg.header.stamp = self.get_clock().now().to_msg()
+                msg.header.frame_id = detections[0].position.header.frame_id
+                msg.detections = detections
+                self._det_pub.publish(msg)
 
             self._set_state(State.AIM)
             if detections and self.get_parameter('aim_enabled').value:

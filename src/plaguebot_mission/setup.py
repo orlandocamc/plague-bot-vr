@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'mission_node = plaguebot_mission.mission_node:main',
+            'dashboard_bridge = plaguebot_mission.dashboard_bridge:main',
         ],
     },
 )

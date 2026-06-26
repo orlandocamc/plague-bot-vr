@@ -1,10 +1,10 @@
-"""Full mission stack (SPEC §6.2).
+"""Full mission stack (SPEC §6.2, ADR-0004).
 
 Brings up: nav.launch.py (sim + EKF + Nav2) + perception_node + mission_node +
 rosbridge_websocket (for the VR page) + a static HTTP server for the WebXR page.
 
-move_group is optional (use_moveit:=true) and only needed for the IK_POSITION
-step; the rest of the mission runs without it (see mission_node docstring).
+The robot is detection-only (ADR-0004): the AIM step is a camera look-at, so the
+mission needs no MoveIt/move_group.
 """
 
 import os
@@ -13,7 +13,6 @@ from launch import LaunchDescription
 from launch.actions import (
     IncludeLaunchDescription, DeclareLaunchArgument, ExecuteProcess, TimerAction
 )
-from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -29,12 +28,10 @@ def generate_launch_description():
 
     backend = LaunchConfiguration('backend')
     headless = LaunchConfiguration('headless')
-    use_moveit = LaunchConfiguration('use_moveit')
 
     declared = [
         DeclareLaunchArgument('backend', default_value='mock'),
         DeclareLaunchArgument('headless', default_value='false'),
-        DeclareLaunchArgument('use_moveit', default_value='false'),
     ]
 
     nav = IncludeLaunchDescription(
@@ -47,13 +44,6 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(pkg_perception, 'launch', 'perception.launch.py')),
         launch_arguments={'backend': backend}.items(),
-    )
-
-    move_group = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('plaguebot_moveit'),
-                         'launch', 'move_group.launch.py')),
-        condition=IfCondition(use_moveit),
     )
 
     mission = Node(
@@ -82,7 +72,7 @@ def generate_launch_description():
     # Give the sim + Nav2 time to come up before mission/perception attach.
     delayed = TimerAction(
         period=12.0,
-        actions=[perception, move_group, mission, rosbridge, web_server],
+        actions=[perception, mission, rosbridge, web_server],
     )
 
     return LaunchDescription(declared + [nav, delayed])

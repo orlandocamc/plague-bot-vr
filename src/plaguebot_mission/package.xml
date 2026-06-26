@@ -13,7 +13,6 @@
   <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>control_msgs</exec_depend>
   <exec_depend>nav2_msgs</exec_depend>
-  <exec_depend>moveit_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>tf2_geometry_msgs</exec_depend>
   <exec_depend>plaguebot_msgs</exec_depend>

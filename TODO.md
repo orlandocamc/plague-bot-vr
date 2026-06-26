@@ -118,17 +118,14 @@
   - [x] Arm motions (folded/deploy/return) via `arm_controller` FollowJointTrajectory — **deviation from SPEC** (which used MoveGroup); fixed joint configs don't need planning, far more robust in sim
   - [x] Scanning Routine: joint_1 sweep -0.5 → +0.5 over 4s
   - [x] Service client for `/perception/detect`
-  - [x] IK via MoveIt `/compute_ik` (best-effort) — VERIFIED with `use_moveit:=true`.
-    move_group loads the unified robot model (via the `/robot_description` topic
-    fallback; SRDF name mismatch is non-fatal). mission_node now transforms the
-    detection point (frame `d435_link`) into `base_link` via tf2 before IK, and
-    SCAN recenters to `deploy` so DETECT/IK run from a stable pose.
-  - [x] FINDING: the PROTON arm reach (~0.5 m) < corridor standoff to the row
-    (~0.6–0.75 m), so `/compute_ik` returns NO_IK_SOLUTION (-31) for real
-    detections (only points ~at the wrist are reachable). IK_POSITION skips
-    gracefully. DECISION NEEDED: drive the base closer before IK, or redefine
-    IK_POSITION as a camera "look-at" (joint_1 yaw + wrist tilt) instead of a
-    reach — inspection only needs to aim the camera, not touch the pest.
+  - [x] AIM step = camera look-at (ADR-0004), replaces SPEC's IK_POSITION.
+    The robot is detection-only (no sprayer), and the arm (~0.5 m reach) can't
+    reach the row (~0.7 m) anyway, so instead of MoveIt IK we rotate joint_1
+    (yaw) + joint_5 (pitch) by the detection's angular offset in `d435_link` to
+    center the pest in the D435 view. No move_group / `/compute_ik` needed.
+    VERIFIED end-to-end (AIM logs off yaw/pitch and moves the arm).
+  - [ ] Tune `aim_yaw_sign` / `aim_pitch_sign` on the real robot (or torch in
+    sim) — the sign mapping can't be confirmed with the synthetic mock point.
 - [x] `launch/mission.launch.py` (includes `nav.launch.py` + rosbridge + http web server + perception + mission; `use_moveit` arg)
 
 ### VR WebXR page

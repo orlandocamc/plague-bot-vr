@@ -1,15 +1,18 @@
-"""Mission executor (SPEC §6.2).
+"""Mission executor (SPEC §6.2, ADR-0004).
 
-Drives one inspection cycle as an 8-state machine:
+Drives one inspection cycle as a state machine:
 
-    IDLE -> NAVIGATE -> DEPLOY -> SCAN -> DETECT -> IK_POSITION -> RETURN -> IDLE
+    IDLE -> NAVIGATE -> DEPLOY -> SCAN -> DETECT -> AIM -> RETURN -> IDLE
 
-The folded/deploy/scan arm motions are fixed joint configurations, so they are
-commanded straight to the arm_controller via its FollowJointTrajectory action —
-no move_group planning needed, which keeps the pipeline runnable in simulation.
-MoveIt's /compute_ik service is used only to turn a 3D Detection point into joint
-values (best-effort: if move_group isn't up or IK fails, IK_POSITION is skipped,
-which SPEC allows for the no-detection case).
+All arm motions are commanded straight to the arm_controller via its
+FollowJointTrajectory action — no MoveIt/move_group needed, which keeps the
+pipeline runnable in simulation and on the real robot.
+
+The robot is detection-only (no sprayer — ADR-0004), so the arm never reaches the
+plant. The AIM step is a camera *look-at*: it rotates the base yaw (joint_1) and
+wrist pitch (joint_5) by the detection's angular offset in the camera frame,
+centering the pest in the D435 view. This replaces SPEC §6.2's IK_POSITION, which
+was geometrically infeasible (arm reach ~0.5 m < row standoff ~0.7 m).
 
 This node also subsumes the Phase 4 nav-arm coordinator (SPEC §5.1): the arm is
 folded before NAVIGATE and deployed on arrival. See ADR-0003 for the perception
@@ -30,8 +33,8 @@ from geometry_msgs.msg import PoseStamped, PointStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
 from nav2_msgs.action import NavigateToPose
-from moveit_msgs.srv import GetPositionIK
 
+import math
 import tf2_ros
 from rclpy.time import Time
 from rclpy.duration import Duration as RclDuration
@@ -46,7 +49,7 @@ class State(Enum):
     DEPLOY = auto()
     SCAN = auto()
     DETECT = auto()
-    IK_POSITION = auto()
+    AIM = auto()
     RETURN = auto()
 
 
@@ -68,17 +71,20 @@ class MissionNode(Node):
         self.declare_parameter('scan_max', 0.5)
         self.declare_parameter('scan_duration', 4.0)
         self.declare_parameter('arm_move_duration', 3.0)
-        self.declare_parameter('planning_group', 'arm')
-        self.declare_parameter('ik_link', 'wrist_2_link')
-        # move_group runs the standalone arm model rooted at base_link, so the
-        # detection point (in the camera optical frame) must be transformed into
-        # base_link before /compute_ik — see ADR-0003 / mission docstring.
-        self.declare_parameter('ik_frame', 'base_link')
+        # AIM (camera look-at, ADR-0004): the detection point is expressed in the
+        # camera frame; we rotate joint_1 (yaw) and joint_5 (wrist pitch) by the
+        # target's angular offset off the optical axis to center it in the view.
+        self.declare_parameter('camera_frame', 'd435_link')
+        self.declare_parameter('aim_enabled', True)
+        # Per-axis sign: maps the camera-frame angular offset onto joint motion
+        # (depends on how joint_1/joint_5 axes are oriented vs the optical axis).
+        self.declare_parameter('aim_yaw_sign', -1.0)
+        self.declare_parameter('aim_pitch_sign', 1.0)
+        self.declare_parameter('aim_max_step', 1.0)  # clamp per-step (rad)
         # Home/dock to return to after a mission — the robot spawn (open floor
         # south of the plant rows). (0,0) is a map corner and not reachable.
         self.declare_parameter('return_x', 0.5)
         self.declare_parameter('return_y', -5.0)
-        self.declare_parameter('use_ik', True)
 
         self.joint_names = list(self.get_parameter('joint_names').value)
         self.folded = list(self.get_parameter('folded').value)
@@ -87,9 +93,8 @@ class MissionNode(Node):
         self._state = State.IDLE
         self._busy = threading.Lock()
 
-        # TF, to express the detection point in the IK frame (base_link). The
-        # camera optical frame isn't in move_group's standalone model, but it is
-        # in the live TF tree published by the unified robot.
+        # TF, to express the detection point in the camera frame for AIM (the
+        # perception node may tag it in the cloud frame, which is d435_link).
         self._tf_buffer = tf2_ros.Buffer()
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer, self)
 
@@ -100,8 +105,6 @@ class MissionNode(Node):
                                  callback_group=cb)
         self._detect = self.create_client(Detect, '/perception/detect',
                                           callback_group=cb)
-        self._ik = self.create_client(GetPositionIK, '/compute_ik',
-                                      callback_group=cb)
 
         self.create_subscription(PoseStamped, '/mission/start',
                                  self._on_start, 10, callback_group=cb)
@@ -135,11 +138,11 @@ class MissionNode(Node):
             self._set_state(State.DETECT)
             detections = self._run_detect()
 
-            self._set_state(State.IK_POSITION)
-            if detections and self.get_parameter('use_ik').value:
-                self._ik_position(detections[0])
+            self._set_state(State.AIM)
+            if detections and self.get_parameter('aim_enabled').value:
+                self._aim_camera(detections[0])
             else:
-                self.get_logger().info('no detection / IK disabled; skipping IK')
+                self.get_logger().info('no detection / aim disabled; skipping AIM')
 
             self._set_state(State.RETURN)
             self._move_arm(self.folded)
@@ -225,35 +228,41 @@ class MissionNode(Node):
         self.get_logger().info(f'detect: {resp.message}')
         return list(resp.detections)
 
-    def _ik_position(self, detection):
-        if not self._ik.wait_for_service(timeout_sec=5.0):
-            self.get_logger().warn('/compute_ik unavailable; skipping IK_POSITION')
-            return False
-        ik_frame = self.get_parameter('ik_frame').value
-        point = self._to_ik_frame(detection.position, ik_frame)
+    def _aim_camera(self, detection):
+        """Camera look-at (ADR-0004): center the detection in the D435 view.
+
+        The robot is detection-only, so the arm never reaches the plant. Instead
+        we rotate the base yaw (joint_1) and wrist pitch (joint_5) by the target's
+        angular offset off the optical axis, in the camera frame (+Z forward,
+        +X image-right, +Y image-down). This is always feasible — no IK, no reach.
+        """
+        cam = self.get_parameter('camera_frame').value
+        point = self._to_frame(detection.position, cam)
         if point is None:
             self.get_logger().warn(
-                f'could not transform detection into {ik_frame}; skipping IK')
+                f'could not transform detection into {cam}; skipping AIM')
             return False
-        req = GetPositionIK.Request()
-        req.ik_request.group_name = self.get_parameter('planning_group').value
-        req.ik_request.ik_link_name = self.get_parameter('ik_link').value
-        req.ik_request.pose_stamped.header.frame_id = ik_frame
-        req.ik_request.pose_stamped.pose.position = point
-        req.ik_request.pose_stamped.pose.orientation.w = 1.0
-        req.ik_request.timeout.sec = 1
-        resp = self._ik.call(req)
-        if resp is None or resp.error_code.val != 1:
-            code = None if resp is None else resp.error_code.val
-            self.get_logger().warn(f'IK failed (error_code={code}); skipping')
+        tx, ty, tz = point.x, point.y, point.z
+        if tz <= 0.05:
+            self.get_logger().warn('detection behind/at camera; skipping AIM')
             return False
-        sol = resp.solution.joint_state
-        order = {n: p for n, p in zip(sol.name, sol.position)}
-        target = [order.get(n, 0.0) for n in self.joint_names]
-        self.get_logger().info('IK solved; moving gripper to detection')
+        # Angular offsets off the optical axis (+Z).
+        yaw_off = math.atan2(tx, tz)    # horizontal
+        pitch_off = math.atan2(ty, tz)  # vertical
+        step = float(self.get_parameter('aim_max_step').value)
+        yaw = self.get_parameter('aim_yaw_sign').value * yaw_off
+        pitch = self.get_parameter('aim_pitch_sign').value * pitch_off
+        yaw = max(-step, min(step, yaw))
+        pitch = max(-step, min(step, pitch))
+        target = list(self.deploy)
+        target[0] = self.deploy[0] + yaw      # joint_1 base yaw
+        target[4] = self.deploy[4] + pitch    # joint_5 wrist pitch
+        self.get_logger().info(
+            f'aiming camera at detection (off yaw={math.degrees(yaw_off):.1f}°, '
+            f'pitch={math.degrees(pitch_off):.1f}°)')
         return self._move_arm(target)
 
-    def _to_ik_frame(self, point_stamped, target_frame):
+    def _to_frame(self, point_stamped, target_frame):
         """Transform a detection PointStamped into target_frame via tf2.
 
         Returns the geometry_msgs/Point in target_frame, or None on failure.

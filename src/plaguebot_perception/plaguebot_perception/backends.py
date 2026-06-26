@@ -54,14 +54,17 @@ class MockBackend(Backend):
     def infer(self, image_bgr):
         h, w = (image_bgr.shape[0], image_bgr.shape[1]) if image_bgr is not None \
             else (480, 640)
-        cx, cy = w // 2, h // 2
+        # Off-center bbox so the AIM step (camera look-at, ADR-0004) visibly
+        # re-aims toward it, as a real off-center pest would.
+        cx, cy = int(w * 0.62), int(h * 0.58)
         half = min(w, h) // 8
         bbox = (cx - half, cy - half, cx + half, cy + half)
-        # Synthetic 3D point 0.3 m in front of the camera (+Z is the optical
-        # axis of d435_link), so DETECT/IK run even when the deploy pose aims
-        # the D435 at depthless open space.
+        # Synthetic 3D point ~0.3 m in front of the camera, offset right/down to
+        # match the off-center bbox (+Z optical axis, +X right, +Y down in
+        # d435_link), so DETECT/AIM run even when the deploy pose aims the D435
+        # at depthless open space.
         return [RawDetection(self._class_name, self._confidence, bbox,
-                             position=(0.0, 0.0, 0.3))]
+                             position=(0.09, 0.05, 0.3))]
 
 
 class _UltralyticsBackend(Backend):

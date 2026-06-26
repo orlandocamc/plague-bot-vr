@@ -6,8 +6,7 @@ each bounding-box centroid into the organized point cloud for a 3D position, and
 publishes the results as a MarkerArray for RViz.
 """
 
-import math
-
+import numpy as np
 import rclpy
 from rclpy.node import Node
 
@@ -66,20 +65,38 @@ class PerceptionNode(Node):
         self._latest_cloud = msg
 
     def _reproject(self, u, v):
-        """Return the 3D point at organized-cloud pixel (u, v), or None."""
+        """Return the 3D point at organized-cloud pixel (u, v), or None.
+
+        Depth clouds have holes (NaN). If the exact pixel is invalid, fall back
+        to the valid point whose pixel is nearest to (u, v) in the whole frame,
+        so a detection always gets a usable 3D position when any depth exists.
+        """
         cloud = self._latest_cloud
         if cloud is None or cloud.height <= 1:
             return None
-        u = max(0, min(u, cloud.width - 1))
-        v = max(0, min(v, cloud.height - 1))
-        pts = list(point_cloud2.read_points(
-            cloud, field_names=('x', 'y', 'z'), skip_nans=False, uvs=[(u, v)]))
-        if not pts:
+        w, h = cloud.width, cloud.height
+        u = max(0, min(int(u), w - 1))
+        v = max(0, min(int(v), h - 1))
+        # Read the whole organized cloud once; index by flat pixel (row-major:
+        # v*width + u). Avoids the uvs= argument, whose format differs across
+        # sensor_msgs_py versions.
+        pts = point_cloud2.read_points(
+            cloud, field_names=('x', 'y', 'z'), skip_nans=False)
+        x = np.asarray(pts['x'], dtype=float)
+        y = np.asarray(pts['y'], dtype=float)
+        z = np.asarray(pts['z'], dtype=float)
+        finite = np.isfinite(x) & np.isfinite(y) & np.isfinite(z)
+
+        idx = v * w + u
+        if finite[idx]:
+            return (float(x[idx]), float(y[idx]), float(z[idx]))
+
+        valid = np.flatnonzero(finite)
+        if valid.size == 0:
             return None
-        x, y, z = float(pts[0][0]), float(pts[0][1]), float(pts[0][2])
-        if any(math.isnan(c) or math.isinf(c) for c in (x, y, z)):
-            return None
-        return (x, y, z)
+        d2 = (valid % w - u) ** 2 + (valid // w - v) ** 2
+        j = int(valid[np.argmin(d2)])
+        return (float(x[j]), float(y[j]), float(z[j]))
 
     def _on_detect(self, request, response):
         if self._latest_image is None:
@@ -102,9 +119,13 @@ class PerceptionNode(Node):
         raw_dets = self._backend.infer(image_bgr)
         detections = []
         for raw in raw_dets:
-            u, v = raw.center
-            xyz = self._reproject(u, v)
+            if raw.position is not None:
+                xyz = raw.position  # backend-supplied (e.g. mock)
+            else:
+                u, v = raw.center
+                xyz = self._reproject(u, v)
             if xyz is None:
+                u, v = raw.center
                 self.get_logger().warn(
                     f'no depth at pixel ({u},{v}) for {raw.class_name}; skipping')
                 continue

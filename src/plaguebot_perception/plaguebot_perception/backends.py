@@ -11,10 +11,17 @@ from dataclasses import dataclass
 
 @dataclass
 class RawDetection:
-    """A 2D detection before depth reprojection."""
+    """A 2D detection before depth reprojection.
+
+    ``position`` is normally None: the node reprojects the bbox center into the
+    depth cloud. A backend may set it (the mock does) to supply a self-contained
+    3D point in the camera optical frame, bypassing depth — useful in sim where
+    the deploy pose may aim the camera at depthless open space.
+    """
     class_name: str
     confidence: float
     bbox: tuple  # (x_min, y_min, x_max, y_max) in image pixels
+    position: tuple = None  # optional (x, y, z) in the cloud/optical frame
 
     @property
     def center(self):
@@ -50,7 +57,11 @@ class MockBackend(Backend):
         cx, cy = w // 2, h // 2
         half = min(w, h) // 8
         bbox = (cx - half, cy - half, cx + half, cy + half)
-        return [RawDetection(self._class_name, self._confidence, bbox)]
+        # Synthetic 3D point 0.3 m in front of the camera (+Z is the optical
+        # axis of d435_link), so DETECT/IK run even when the deploy pose aims
+        # the D435 at depthless open space.
+        return [RawDetection(self._class_name, self._confidence, bbox,
+                             position=(0.0, 0.0, 0.3))]
 
 
 class _UltralyticsBackend(Backend):

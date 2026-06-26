@@ -95,9 +95,18 @@ def generate_launch_description():
             '/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan',
             '/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU',
             '/kiyo/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/d435/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/d435/depth/image_raw@sensor_msgs/msg/Image[gz.msgs.Image',
-            '/d435/depth/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+            # The rgbd_camera (<topic>/d435</topic>) emits fixed gz suffixes
+            # /d435/image, /d435/depth_image, /d435/points. Bridge those real gz
+            # names, then remap below to the SPEC's ROS names (/d435/image_raw,
+            # /d435/depth/image_raw, /d435/depth/points).
+            '/d435/image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/d435/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/d435/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked',
+        ],
+        remappings=[
+            ('/d435/image', '/d435/image_raw'),
+            ('/d435/depth_image', '/d435/depth/image_raw'),
+            ('/d435/points', '/d435/depth/points'),
         ],
         output='screen'
     )

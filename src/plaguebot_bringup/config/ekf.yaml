@@ -1,0 +1,57 @@
+### robot_localization EKF for Plague-Bot ##################################
+#
+# Local pose estimator (world_frame == odom). It fuses the skid-steer wheel
+# odometry with the IMU and publishes a single, continuous odom->base_footprint
+# TF. slam_toolbox then only has to supply map->odom. This makes the SLAM prior
+# robust to wheel slip on collisions and to scrub during sharp in-place turns,
+# which is exactly when the raw wheel-only odom drifts and the map "overlaps".
+#
+# Sensor split:
+#   - Wheel odom contributes ONLY forward velocity (vx). Its yaw rate is the
+#     unreliable skid-steer quantity (the reason robot_controllers.yaml needs
+#     wheel_separation_multiplier: 1.65), so we do NOT fuse it.
+#   - IMU contributes heading (yaw) and yaw rate (vyaw) — the trustworthy values
+#     that do not slip when a wheel loses traction.
+###########################################################################
+
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+
+    frequency: 30.0
+    sensor_timeout: 0.1
+    two_d_mode: true            # planar greenhouse robot — zero out z/roll/pitch
+    publish_tf: true            # EKF owns odom->base_footprint (diff_drive must not)
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom           # local estimate; SLAM provides map->odom
+
+    # --- Wheel odometry: forward velocity only -------------------------------
+    odom0: /diff_drive_controller/odom
+    # [ x,    y,    z,
+    #   roll, pitch,yaw,
+    #   vx,   vy,   vz,
+    #   vroll,vpitch,vyaw,
+    #   ax,   ay,   az ]
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  false, false,
+                   false, false, false,
+                   false, false, false]
+    odom0_differential: false
+    odom0_relative: false
+    odom0_queue_size: 10
+
+    # --- IMU: heading + yaw rate --------------------------------------------
+    imu0: /imu/data
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_differential: false
+    imu0_relative: false
+    imu0_queue_size: 10
+    imu0_remove_gravitational_acceleration: true

@@ -1,0 +1,32 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Large / non-Hailo model files (CPU-era, unused). Keep best_320.hef (needed on-chip).
+*.onnx
+*.pt
+
+# Secrets / local env
+.env
+*.log
+
+# Editor
+.vscode/
+*.swp
+
+# Vendored upstream ROS packages (installed separately; not part of this repo).
+# Re-add with `git add -f` if you decide to vendor them.
+/src/realsense-ros/
+/src/sllidar_ros2/
+
+# Scratch
+cam.jpg
+test.jpg
+lidar.jpg

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAGUE-BOT VR HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="video-container">
+        <div class="video-panel">
+            <video id="video-realsense" autoplay playsinline muted></video>
+            <div class="camera-label">REALSENSE</div>
+        </div>
+        <div class="video-divider"></div>
+        <div class="video-panel">
+            <video id="video-kiyo" autoplay playsinline muted></video>
+            <div class="camera-label">RAZER KIYO</div>
+        </div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <div class="hud-container">
+        <div class="hud-panel top-left">
+            <h2>NETWORK</h2>
+            <div class="stat"><span class="label">PING:</span><span class="value">24ms</span></div>
+            <div class="stat"><span class="label">FPS:</span><span class="value">60</span></div>
+            <div class="stat"><span class="label">SIGNAL:</span><span class="value" style="color: #00ff00;">EXCELLENT</span></div>
+        </div>
+
+        <div class="hud-panel bottom-left">
+            <h2>VEHICLE STATUS</h2>
+            <div class="stat"><span class="label">BATTERY:</span><span class="value">87%</span></div>
+            <div class="stat"><span class="label">DRIVE MODE:</span><span class="value">AUTO</span></div>
+            <div class="stat"><span class="label">THRUST:</span><span class="value">NOMINAL</span></div>
+        </div>
+
+        <div class="hud-panel top-right">
+            <h2>EDGE NODE</h2>
+            <div class="stat"><span class="label">CPU:</span><span class="value">42%</span></div>
+            <div class="stat"><span class="label">RAM:</span><span class="value">3.2GB / 8GB</span></div>
+            <div class="stat"><span class="label">TEMP:</span><span class="value">45&deg;C</span></div>
+        </div>
+
+        <div class="hud-panel bottom-right">
+            <h2>ARM - SPRAYER</h2>
+            <div class="stat"><span class="label">STATUS:</span><span class="value" style="color: #ff003c;">ARMED</span></div>
+            <div class="stat"><span class="label">PRESSURE:</span><span class="value">120 PSI</span></div>
+            <div class="stat"><span class="label">FLUID:</span><span class="value">45 L</span></div>
+        </div>
+
+        <div class="hud-panel bottom-center">
+            <h2>EVENT LOG</h2>
+            <div class="log-entry">[SYS] WebRTC dual-stream mode active...</div>
+            <div class="log-entry" id="status-log">[SYS] Waiting for streams...</div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

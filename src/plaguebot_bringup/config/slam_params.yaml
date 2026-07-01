@@ -1,0 +1,69 @@
+slam_toolbox:
+  ros__parameters:
+    # Plugin / mode
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    # Frames
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_footprint
+    scan_topic: /scan
+
+    # Timing / rate
+    use_sim_time: true
+    map_update_interval: 5.0        # seconds between map publishes
+    resolution: 0.05                # 5 cm/cell — good for 10×20 m greenhouse
+    max_laser_range: 12.0           # matches RPLIDAR C1 spec
+    minimum_time_interval: 0.1      # process scans more often so turns produce small, matchable increments
+    transform_timeout: 0.2
+
+    # Scan matching
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_travel_distance: 0.1    # process scan after 10 cm of travel
+    minimum_travel_heading: 0.1     # or 0.1 rad of rotation
+
+    # Loop closure — DISABLED. The greenhouse is highly self-similar (5 identical
+    # parallel plant walls, long featureless corridors), so loop closure matches
+    # one row to a different identical row and warps the map (measured: 21 deg / 1 m
+    # jumps in map->odom). Wheel odometry is accurate (IMU-validated ratio ~1.0
+    # across turn speeds), so it carries the map without loop closure.
+    do_loop_closing: false
+    loop_search_distance: 3.0
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_minimum_response_coarse: 0.35
+    loop_match_minimum_response_fine: 0.45
+
+    # Correlation parameters — smaller search window keeps each scan match close to
+    # the (accurate) odometry prior so it can't snap to the wrong identical row.
+    correlation_search_space_dimension: 0.3
+    correlation_search_space_resolution: 0.01
+    correlation_search_space_smear_deviation: 0.1
+
+    # Loop closure correlation
+    loop_search_space_dimension: 8.0
+    loop_search_space_resolution: 0.05
+    loop_search_space_smear_deviation: 0.03
+
+    # Distance variance penalty
+    distance_variance_penalty: 0.5
+    angle_variance_penalty: 1.0
+
+    # Fine search — coarse angular search narrowed from 20 deg to ~4 deg. Odometry
+    # heading is accurate, so the matcher only needs small angular refinement; a
+    # wide window let it snap ~20 deg onto a wrongly-aligned identical row.
+    fine_search_angle_offset: 0.00349
+    coarse_search_angle_offset: 0.0698
+    coarse_angle_resolution: 0.0349
+    minimum_angle_penalty: 0.9
+    minimum_distance_penalty: 0.5
+    use_response_expansion: true
+
+    # Serialization / save
+    mode: mapping

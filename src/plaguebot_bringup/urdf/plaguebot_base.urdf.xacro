@@ -1,0 +1,381 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot_base">
+  <xacro:arg name="is_sim" default="true"/>
+  <!-- Override in unified robot to use a combined YAML (base + arm controllers) -->
+  <xacro:arg name="controllers_yaml" default="$(find plaguebot_base_description)/config/base_controllers.yaml"/>
+
+  <!-- PROPIEDADES FÍSICAS — No modificar sin consultar -->
+  <xacro:property name="wheel_radius"    value="0.0762"/>
+  <xacro:property name="wheel_mass"      value="0.4"/>
+  <xacro:property name="base_mass"       value="8.0"/>
+
+  <!-- TODO: Orlando completa links, joints y macros aquí -->
+
+  <!-- MATERIALES (RViz) -->
+  <material name="aluminum">
+    <color rgba="0.77 0.77 0.80 1.0"/>
+  </material>
+  <material name="lidar_black">
+    <color rgba="0.05 0.05 0.05 1.0"/>
+  </material>
+  <material name="tire_black">
+    <color rgba="0.18 0.18 0.18 1.0"/>
+  </material>
+
+  <xacro:if value="$(arg is_sim)">
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(arg controllers_yaml)</parameters>
+    </plugin>
+  </gazebo>
+  </xacro:if>
+
+  <xacro:include filename="$(find plaguebot_base_description)/urdf/plaguebot_base_ros2_control.xacro"/>
+  <xacro:plaguebot_ros2_control is_sim="$(arg is_sim)"/>
+
+  <!-- BASE FOOTPRINT (raíz del robot, proyección al suelo) -->
+  <link name="base_footprint"/>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_track_link"/>
+    <origin xyz="0 0 0.0762" rpy="0 0 0"/>
+  </joint>
+
+  <!-- CHASIS PRINCIPAL -->
+  <link name="base_track_link">
+    <visual>
+      <origin xyz="-0.30 0.41 -0.04" rpy="1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/CHASIS_PLAGUEBOT.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="aluminum"/>
+    </visual>
+    <collision>
+       <origin xyz="-0.30 0.41 -0.04" rpy="1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/CHASIS_PLAGUEBOT.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+    </collision>
+    <inertial>
+      <mass value="8.0"/>
+      <inertia ixx="0.0773" iyy="0.1613" izz="0.1742" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <!-- TAPA SUPERIOR -->
+  <link name="top_plate_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.36 0.26 0.003"/>
+      </geometry>
+      <material name="dark_gray">
+        <color rgba="0.2 0.2 0.2 0.9"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.36 0.26 0.003"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.3"/>
+      <inertia ixx="0.00169" iyy="0.00846" izz="0.01012" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="top_plate_joint" type="fixed">
+    <parent link="base_track_link"/>
+    <child link="top_plate_link"/>
+    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+  </joint>
+
+  <!-- LIDAR (RPLIDAR C1) -->
+  <link name="laser">
+    <visual>
+      <origin xyz="0.027 -0.0348 0" rpy="1.5708 0 -3.1416"/>
+      <geometry>
+        <mesh filename="package://plaguebot_base_description/meshes/visual/RPLIDAR_C1.STL" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="lidar_black"/>
+    </visual>
+    <collision>
+      <origin xyz="0.027 -0.0348 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.17"/>
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="laser_joint" type="fixed">
+    <parent link="base_track_link"/>
+    <child link="laser"/>
+    <!-- Raised above top_plate (z=0.15) so the 360 deg scan plane clears the
+         chassis frame; otherwise the LiDAR sits inside the chassis and ~60% of
+         beams hit the robot's own body, painting a false "occupied" trail. -->
+    <origin xyz="-0.1 -0.08 0.28" rpy="0 0 0"/>
+  </joint>
+
+  <!-- LLANTA DERECHA FRONTAL -->
+  <link name="front_right_wheel_link">
+    <visual>
+      <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="tire_black"/>
+    </visual>
+    <collision>
+       <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.4"/>
+      <inertia ixx="0.000712" iyy="0.000712" izz="0.001160" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="front_right_wheel_joint" type="continuous">
+    <parent link="base_track_link"/>
+    <child link="front_right_wheel_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="-0.118 0.17 0.0"/>
+    <axis xyz="0.0 1 0.0"/>
+  </joint>
+
+<!-- LLANTA DERECHA TRASERA-->
+  <link name="rear_right_wheel_link">
+    <visual>
+      <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="tire_black"/>
+    </visual>
+    <collision>
+       <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.4"/>
+      <inertia ixx="0.000712" iyy="0.000712" izz="0.001160" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="rear_right_wheel_joint" type="continuous">
+    <parent link="base_track_link"/>
+    <child link="rear_right_wheel_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.1175 0.17 0.0"/>
+    <axis xyz="0.0 1 0.0"/>
+  </joint>
+
+  <!-- LLANTA IZQUIERDA DELANTERA-->
+  <link name="front_left_wheel_link">
+    <visual>
+      <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="tire_black"/>
+    </visual>
+    <collision>
+       <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.4"/>
+      <inertia ixx="0.000712" iyy="0.000712" izz="0.001160" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="front_left_wheel_joint" type="continuous">
+    <parent link="base_track_link"/>
+    <child link="front_left_wheel_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="-0.118 -0.17 0.0"/>
+    <axis xyz="0.0 1 0.0"/>
+  </joint>
+
+  <!-- LLANTA IZQUIERDA TRASERA-->
+
+<link name="rear_left_wheel_link">
+    <visual>
+      <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="tire_black"/>
+    </visual>
+    <collision>
+       <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
+        <geometry>
+          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.4"/>
+      <inertia ixx="0.000712" iyy="0.000712" izz="0.001160" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="rear_left_wheel_joint" type="continuous">
+    <parent link="base_track_link"/>
+    <child link="rear_left_wheel_link"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.1175 -0.17 0.0"/>
+    <axis xyz="0.0 1 0.0"/>
+  </joint>
+
+  <!-- COLORES PARA GAZEBO SIM -->
+  <gazebo reference="base_track_link">
+    <visual>
+      <material>
+        <ambient>0.55 0.55 0.58 1.0</ambient>
+        <diffuse>0.77 0.77 0.80 1.0</diffuse>
+        <specular>0.90 0.90 0.92 1.0</specular>
+      </material>
+    </visual>
+  </gazebo>
+
+  <gazebo reference="laser">
+    <visual>
+      <material>
+        <ambient>0.03 0.03 0.03 1.0</ambient>
+        <diffuse>0.05 0.05 0.05 1.0</diffuse>
+        <specular>0.10 0.10 0.10 1.0</specular>
+      </material>
+    </visual>
+  </gazebo>
+
+  <xacro:macro name="wheel_material" params="link_name">
+    <gazebo reference="${link_name}">
+      <visual>
+        <material>
+          <ambient>0.12 0.12 0.12 1.0</ambient>
+          <diffuse>0.18 0.18 0.18 1.0</diffuse>
+          <specular>0.35 0.35 0.35 1.0</specular>
+        </material>
+      </visual>
+    </gazebo>
+  </xacro:macro>
+
+  <xacro:wheel_material link_name="front_right_wheel_link"/>
+  <xacro:wheel_material link_name="rear_right_wheel_link"/>
+  <xacro:wheel_material link_name="front_left_wheel_link"/>
+  <xacro:wheel_material link_name="rear_left_wheel_link"/>
+
+  <!-- RAZER KIYO RGB CAMERA (chassis, near LiDAR) -->
+  <link name="kiyo_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.07 0.03"/></geometry>
+      <material name="kiyo_dark"><color rgba="0.1 0.1 0.1 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.07 0.03"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.096"/>
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="kiyo_joint" type="fixed">
+    <parent link="base_track_link"/>
+    <child link="kiyo_link"/>
+    <origin xyz="-0.1 0.0 0.16" rpy="0 0 0"/>
+  </joint>
+
+  <!-- IMU (fixed to chassis, no visual) -->
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="0.00001" iyy="0.00001" izz="0.00001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_track_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- GAZEBO SENSOR PLUGINS (simulation only) -->
+  <xacro:if value="$(arg is_sim)">
+
+    <!-- RPLIDAR C1 — GPU LiDAR on existing laser link -->
+    <gazebo reference="laser">
+      <sensor type="gpu_lidar" name="rplidar_c1">
+        <topic>/scan</topic>
+        <gz_frame_id>laser</gz_frame_id>
+        <update_rate>10</update_rate>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>360</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
+            </horizontal>
+          </scan>
+          <range>
+            <!-- 0.25 m (not the C1's 0.15 m spec) so the stowed arm column,
+                 ~0.13-0.17 m from the raised LiDAR, is clipped instead of
+                 painting a false "occupied" blob that trails the robot. The
+                 nearest real wall is ~0.35 m and plant rows ~0.75 m away. -->
+            <min>0.25</min>
+            <max>12.0</max>
+            <resolution>0.01</resolution>
+          </range>
+        </lidar>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+      </sensor>
+    </gazebo>
+
+    <!-- Razer Kiyo RGB camera -->
+    <gazebo reference="kiyo_link">
+      <sensor type="camera" name="kiyo">
+        <topic>/kiyo/image_raw</topic>
+        <gz_frame_id>kiyo_link</gz_frame_id>
+        <update_rate>30</update_rate>
+        <camera>
+          <image>
+            <width>1280</width>
+            <height>720</height>
+            <format>RGB_INT8</format>
+          </image>
+          <clip><near>0.05</near><far>50.0</far></clip>
+        </camera>
+        <always_on>true</always_on>
+        <visualize>false</visualize>
+      </sensor>
+    </gazebo>
+
+    <!-- IMU -->
+    <gazebo reference="imu_link">
+      <sensor type="imu" name="imu_sensor">
+        <topic>/imu/data</topic>
+        <gz_frame_id>imu_link</gz_frame_id>
+        <update_rate>100</update_rate>
+        <always_on>true</always_on>
+        <imu>
+          <angular_velocity><x><noise type="gaussian"><mean>0</mean><stddev>0.009</stddev></noise></x><y><noise type="gaussian"><mean>0</mean><stddev>0.009</stddev></noise></y><z><noise type="gaussian"><mean>0</mean><stddev>0.009</stddev></noise></z></angular_velocity>
+          <linear_acceleration><x><noise type="gaussian"><mean>0</mean><stddev>0.021</stddev></noise></x><y><noise type="gaussian"><mean>0</mean><stddev>0.021</stddev></noise></y><z><noise type="gaussian"><mean>0</mean><stddev>0.021</stddev></noise></z></linear_acceleration>
+        </imu>
+      </sensor>
+    </gazebo>
+
+  </xacro:if>
+
+</robot>

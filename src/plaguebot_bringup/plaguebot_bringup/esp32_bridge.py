@@ -69,7 +69,7 @@ class Esp32Bridge(Node):
         # Skid-steer scrub comp (sim used 1.65). Only affects reported odom yaw,
         # which the EKF ignores (it fuses IMU yaw), so it is non-critical.
         self.declare_parameter("wheel_separation_multiplier", 1.65)
-        self.declare_parameter("ticks_per_rev", 1000.0)  # CALIBRATE (CPR*gear)
+        self.declare_parameter("ticks_per_rev", 4480.0)  # measured: hand-turns E1 & E2 (~4476, ~4484)
 
         # --- Encoder -> side mapping (indices into E1..E4 = 0..3) -------------
         self.declare_parameter("left_encoders", [0, 2])   # guess: E1,E3

@@ -1,8 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="plaguebot_base">
-  <xacro:arg name="is_sim" default="true"/>
-  <!-- Override in unified robot to use a combined YAML (base + arm controllers) -->
-  <xacro:arg name="controllers_yaml" default="$(find plaguebot_base_description)/config/base_controllers.yaml"/>
+  <xacro:arg name="is_sim" default="false"/>
 
   <!-- PROPIEDADES FÍSICAS — No modificar sin consultar -->
   <xacro:property name="wheel_radius"    value="0.0762"/>
@@ -30,8 +28,8 @@
   </gazebo>
   </xacro:if>
 
-  <xacro:include filename="$(find plaguebot_base_description)/urdf/plaguebot_base_ros2_control.xacro"/>
-  <xacro:plaguebot_ros2_control is_sim="$(arg is_sim)"/>
+  <!-- Real robot: motion is owned by esp32_bridge (not ros2_control), so the
+       ros2_control block is intentionally omitted here. -->
 
   <!-- BASE FOOTPRINT (raíz del robot, proyección al suelo) -->
   <link name="base_footprint"/>
@@ -47,14 +45,14 @@
     <visual>
       <origin xyz="-0.30 0.41 -0.04" rpy="1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/CHASIS_PLAGUEBOT.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/CHASIS_PLAGUEBOT.STL" scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="aluminum"/>
     </visual>
     <collision>
        <origin xyz="-0.30 0.41 -0.04" rpy="1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/CHASIS_PLAGUEBOT.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/CHASIS_PLAGUEBOT.STL" scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>
     <inertial>
@@ -97,7 +95,7 @@
     <visual>
       <origin xyz="0.027 -0.0348 0" rpy="1.5708 0 -3.1416"/>
       <geometry>
-        <mesh filename="package://plaguebot_base_description/meshes/visual/RPLIDAR_C1.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://plaguebot_bringup/meshes/visual/RPLIDAR_C1.STL" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="lidar_black"/>
     </visual>
@@ -127,14 +125,14 @@
     <visual>
       <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="tire_black"/>
     </visual>
     <collision>
        <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>
     <inertial>
@@ -155,14 +153,14 @@
     <visual>
       <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="tire_black"/>
     </visual>
     <collision>
        <origin xyz="-0.15 0.16 0.04" rpy="-1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>
     <inertial>
@@ -183,14 +181,14 @@
     <visual>
       <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="tire_black"/>
     </visual>
     <collision>
        <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>
     <inertial>
@@ -212,14 +210,14 @@
     <visual>
       <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="tire_black"/>
     </visual>
     <collision>
        <origin xyz="-0.15 -0.16 -0.04" rpy="1.5708 0.0 0.0"/>
         <geometry>
-          <mesh filename="package://plaguebot_base_description/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://plaguebot_bringup/meshes/visual/LLANTA.STL" scale="0.001 0.001 0.001"/>
         </geometry>
     </collision>
     <inertial>
